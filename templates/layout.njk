@@ -1,0 +1,71 @@
+<div>
+    {% if config.Header.displayEstablishmentName and userData.establishment %}
+        <div id="PRONOTE_ICON">
+            {{ userData.establishment }}
+        </div>
+    {% endif %}
+
+    {% if config.Header.displayStudentName and userData.name %}
+        <div id="PRONOTE_USER">
+            {{ userData.name }}
+            {% if config.Header.displayStudentClass and userData.className %}
+                ({{ userData.className }})
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {# ── Emploi du temps ─────────────────────────────────────────── #}
+    {% if vis.Timetable %}
+        <div id="PRONOTE_TIMETABLES">
+
+            {% if config.Timetable.displayToday %}
+                {% if userData.timetableToday | length > 0 %}
+                    <div id="PRONOTE_TIMETABLE_DAY">
+                        <div class="PRONOTE_TEXT_UNDERLINE">Prochains cours</div>
+                        {% set timetable = userData.timetableToday %}
+                        {% include 'templates/includes/timetable.njk' %}
+                    </div>
+                {% else %}
+                    <div id="PRONOTE_TIMETABLE_DAY">
+                        <div class="PRONOTE_TEXT_UNDERLINE">Plus de cours aujourd'hui !</div>
+                    </div>
+                {% endif %}
+            {% endif %}
+
+            {% if config.Timetable.displayNextDay and userData.timetableNextDay.classes | length > 0 %}
+                <div id="PRONOTE_TIMETABLE_NEXT">
+                    <div class="PRONOTE_TEXT_UNDERLINE">{{ userData.timetableNextDay.day }}</div>
+                    {% set timetable = userData.timetableNextDay.classes %}
+                    {% include 'templates/includes/timetable.njk' %}
+                </div>
+            {% endif %}
+
+        </div>
+    {% endif %}
+
+    {# ── Devoirs ─────────────────────────────────────────────────── #}
+    {% if vis.Homeworks %}
+        {% include 'templates/includes/homeworks.njk' %}
+    {% endif %}
+
+    {# ── Notes ───────────────────────────────────────────────────── #}
+    {% if vis.Grades and userData.grades | length > 0 %}
+        {% include 'templates/includes/grades.njk' %}
+    {% endif %}
+
+    {# ── Absences ────────────────────────────────────────────────── #}
+    {% if vis.Absences and userData.absences | length > 0 %}
+        {% include 'templates/includes/absences.njk' %}
+    {% endif %}
+
+    {# ── Retards ─────────────────────────────────────────────────── #}
+    {% if vis.Delays and userData.delays | length > 0 %}
+        {% include 'templates/includes/delays.njk' %}
+    {% endif %}
+
+    {# ── Punitions ───────────────────────────────────────────────── #}
+    {% if vis.Punishments and userData.punishments | length > 0 %}
+        {% include 'templates/includes/punishments.njk' %}
+    {% endif %}
+
+</div>

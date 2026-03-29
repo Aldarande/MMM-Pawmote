@@ -1,0 +1,164 @@
+/* =====================================================================
+   MMM-pawmote — pawmote.css
+   ===================================================================== */
+
+#PRONOTE_LOADING {
+  text-align: center;
+  font-size: 20px;
+}
+
+#PRONOTE_USER {
+  display: flex;
+  padding-bottom: 10px;
+  padding-top: 5px;
+  justify-content: center;
+}
+
+#PRONOTE_AVATAR {
+  height: 50px;
+  padding-right: 10px;
+}
+
+#PRONOTE_NAME {
+  font-size: x-large;
+  text-align: center;
+}
+
+#PRONOTE_LOGO {
+  background-image: url(resources/pronote.png);
+  height: 100px;
+  width: 270px;
+  background-size: 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+#PRONOTE_ICON {
+  background-image: url(resources/icon.png);
+  background-size: 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  margin-left: auto;
+  margin-right: auto;
+  color: #454545;
+  text-align: center;
+  font-size: xx-large;
+}
+
+.PRONOTE_DISPLAY_TIMETABLE {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+
+.PRONOTE_DETAIL {
+  line-height: 1em;
+  padding-right: 1em;
+  font-size: medium;
+  text-align: left;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+#PRONOTE_ABSENCES,
+#PRONOTE_DELAYS,
+#PRONOTE_MARKS,
+#PRONOTE_PUNISHMENTS,
+#PRONOTE_HOMEWORKS,
+#PRONOTE_TIMETABLES {
+  line-height: 1em;
+  padding-right: 1em;
+  font-size: medium;
+  padding-bottom: 15px;
+  text-align: center;
+}
+
+#PRONOTE_TIMETABLE_DAY,
+#PRONOTE_TIMETABLE_NEXT {
+  padding-bottom: 10px;
+}
+
+.PRONOTE_AV_STUDENT,
+.PRONOTE_VALUES,
+.PRONOTE_HOURS {
+  margin-right: 10px;
+}
+
+#PRONOTE_TEXT_SIMPLE {
+  padding-bottom: 10px;
+}
+
+.PRONOTE_TEXT_UNDERLINE {
+  padding-bottom: 12px;
+  text-decoration: underline;
+}
+
+.PRONOTE_SUBJECT {
+  border-bottom: dotted 2px #222;
+}
+
+.PRONOTE_SUBJECT_VALUE {
+  padding: 5px 0;
+}
+
+.PRONOTE_TEACHER,
+.PRONOTE_ROOM,
+.PRONOTE_CANCEL {
+  margin-right: 5px;
+}
+
+.PRONOTE_VALUES_DESCRIPTION {
+  width: 250px;
+}
+
+.PRONOTE_HOMEWORKS_DATE {
+  text-align: left;
+  margin: 15px 0;
+}
+
+.PRONOTE_HOMEWORKS_DATE span {
+  border-top-right-radius: 1em;
+  border-bottom-right-radius: 1em;
+  background: rgb(0, 0, 0);
+  background: linear-gradient(90deg, rgba(0, 0, 0, 1) 0%, rgba(170, 170, 170, 0.8) 20%);
+  color: black;
+  padding: 5px 10px 5px 25px;
+}
+
+.PRONOTE_HOMEWORKS_DONE {
+  width: 30px;
+  text-align: center;
+}
+
+.PRONOTE_HOMEWORKS_VALUES {
+  width: 100px;
+  margin-right: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#PRONOTE_ERROR {
+  padding-bottom: 10px;
+  font-size: large;
+  text-align: center;
+  color: #e74c3c;
+}
+
+#PRONOTE_CONFIG_LINK {
+  margin-top: 10px;
+  font-size: medium;
+  color: #aaa;
+}
+
+.cancelled {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.highlight {
+  color: white;
+}

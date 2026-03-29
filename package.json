@@ -1,0 +1,19 @@
+{
+  "name": "MMM-pawmote",
+  "version": "2.0.0",
+  "description": "MagicMirror² module for Pronote via Pawnote rewrite-2.0",
+  "main": "MMM-pawmote.js",
+  "scripts": {
+    "install": "npm install"
+  },
+  "keywords": ["magicmirror", "pronote", "pawnote", "ecole", "school"],
+  "author": [
+    "Aldarande (rewrite-2.0 / pawnote)",
+    "Julien \"delphiki\" Villetorte (original)",
+    "bugsounet (original)"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "pawnote": "^1.6.1"
+  }
+}
