@@ -101,10 +101,104 @@
       vertical-align: middle; margin-right: 6px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Zone dépôt image QR ─────────────────────────────────────── */
+    #qr-drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      margin-top: 12px;
+      position: relative;
+    }
+    #qr-drop-zone:hover, #qr-drop-zone.drag-over {
+      border-color: var(--highlight);
+      background: rgba(233, 69, 96, 0.06);
+    }
+    #qr-drop-zone.decoded {
+      border-color: var(--success);
+      background: rgba(46, 204, 113, 0.06);
+    }
+    #qr-drop-icon { color: var(--muted); margin-bottom: 14px; transition: color .2s; }
+    #qr-drop-zone:hover #qr-drop-icon,
+    #qr-drop-zone.drag-over #qr-drop-icon { color: var(--highlight); }
+    #qr-drop-zone.decoded #qr-drop-icon { color: var(--success); }
+    #qr-drop-text { font-size: .92rem; color: var(--muted); line-height: 1.5; }
+
+    /* ── Modale PIN ───────────────────────────────────────────────── */
+    #pin-modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.75);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    #pin-modal.open { display: flex; }
+    #pin-modal-box {
+      background: var(--card);
+      border: 1px solid var(--highlight);
+      border-radius: 14px;
+      padding: 32px 28px;
+      width: 100%;
+      max-width: 340px;
+      text-align: center;
+      box-shadow: 0 8px 40px rgba(0,0,0,.6);
+    }
+    #pin-modal-box h3 { font-size: 1.2rem; color: var(--highlight); margin-bottom: 8px; }
+    #pin-modal-box p  { font-size: .85rem; color: var(--muted); margin-bottom: 20px; }
+    #pin-input {
+      font-size: 2rem;
+      letter-spacing: .5em;
+      text-align: center;
+      width: 100%;
+      padding: 12px;
+      background: var(--accent);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+    }
+    #pin-input:focus { outline: 2px solid var(--highlight); }
+    #pin-error { color: var(--error); font-size: .85rem; margin-top: 8px; min-height: 1.2em; }
+    #pin-modal-actions { display: flex; gap: 10px; margin-top: 16px; }
+    #pin-modal-actions button { margin-top: 0; }
+    #btn-pin-cancel { background: var(--accent); }
+
+    /* ── Panneau de logs ──────────────────────────────────────────── */
+    #log-card { font-size: .78rem; }
+    #log-card h2 { cursor: pointer; user-select: none; }
+    #log-output {
+      background: #0d0d1a;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      font-family: monospace;
+      font-size: .78rem;
+      max-height: 260px;
+      overflow-y: auto;
+      margin-top: 10px;
+    }
+    .log-info  { color: #7ecfff; }
+    .log-ok    { color: var(--success); }
+    .log-warn  { color: #f0a500; }
+    .log-error { color: var(--error); }
+    .log-ts    { color: #555; margin-right: 6px; }
+    #log-actions { display: flex; gap: 8px; margin-top: 8px; }
+    #log-actions button { margin-top: 0; flex: 1; font-size: .8rem; padding: 6px; }
   </style>
 </head>
 <body>
 
+<div style="width:100%;max-width:560px;display:flex;justify-content:flex-end;margin-bottom:8px">
+  <a href="/MMM-pawmote/docs" target="_blank" style="color:var(--muted);text-decoration:none;font-size:.85rem;padding:5px 12px;border:1px solid var(--border);border-radius:6px;transition:all .2s"
+     onmouseover="this.style.color='var(--text)';this.style.borderColor='var(--highlight)'"
+     onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">
+    📖 Documentation
+  </a>
+</div>
 <h1>⚙ MMM-pawmote</h1>
 <p class="subtitle">Configuration de la connexion à Pronote</p>
 
@@ -130,17 +224,63 @@
       Scannez le QR Code depuis l'app Pronote (Mon profil → Connexion par QR Code)
       ou collez son contenu JSON dans le champ ci-dessous.
     </p>
-    <label>QR Code (via caméra ou texte JSON)</label>
+
     <div class="tab-bar" style="margin-top:8px">
       <div class="tab active" data-sub="paste">📋 Coller JSON</div>
+      <div class="tab" data-sub="image">🖼 Image</div>
       <div class="tab" data-sub="scan">📷 Scanner</div>
     </div>
 
+    <!-- Sous-onglet : coller JSON -->
     <div class="tab-content active" id="sub-paste">
       <label>Contenu JSON du QR Code</label>
       <textarea id="qr-json" placeholder='{"jeton":"...","login":"...","url":"..."}'></textarea>
+      <div id="paste-status" style="display:none" class="status-box"></div>
     </div>
 
+    <!-- Sous-onglet : image -->
+    <div class="tab-content" id="sub-image">
+      <div id="qr-drop-zone">
+        <input type="file" id="qr-file-input" accept="image/*" style="display:none" />
+        <div id="qr-drop-inner">
+          <svg id="qr-drop-icon" width="80" height="80" viewBox="0 0 80 80" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <!-- Coin haut-gauche -->
+            <rect x="6" y="6" width="26" height="26" rx="3" stroke="currentColor" stroke-width="3.5" fill="none"/>
+            <rect x="13" y="13" width="12" height="12" rx="1" fill="currentColor"/>
+            <!-- Coin haut-droit -->
+            <rect x="48" y="6" width="26" height="26" rx="3" stroke="currentColor" stroke-width="3.5" fill="none"/>
+            <rect x="55" y="13" width="12" height="12" rx="1" fill="currentColor"/>
+            <!-- Coin bas-gauche -->
+            <rect x="6" y="48" width="26" height="26" rx="3" stroke="currentColor" stroke-width="3.5" fill="none"/>
+            <rect x="13" y="55" width="12" height="12" rx="1" fill="currentColor"/>
+            <!-- Données centre -->
+            <rect x="48" y="48" width="5" height="5" fill="currentColor"/>
+            <rect x="56" y="48" width="5" height="5" fill="currentColor"/>
+            <rect x="64" y="48" width="5" height="5" fill="currentColor"/>
+            <rect x="48" y="56" width="5" height="5" fill="currentColor"/>
+            <rect x="64" y="56" width="5" height="5" fill="currentColor"/>
+            <rect x="48" y="64" width="5" height="5" fill="currentColor"/>
+            <rect x="56" y="64" width="5" height="5" fill="currentColor"/>
+            <rect x="64" y="64" width="5" height="5" fill="currentColor"/>
+            <rect x="56" y="56" width="5" height="5" fill="currentColor"/>
+            <!-- Ligne données milieu -->
+            <rect x="38" y="6"  width="5" height="5" fill="currentColor"/>
+            <rect x="38" y="14" width="5" height="5" fill="currentColor"/>
+            <rect x="38" y="22" width="5" height="5" fill="currentColor"/>
+            <rect x="6"  y="38" width="5" height="5" fill="currentColor"/>
+            <rect x="14" y="38" width="5" height="5" fill="currentColor"/>
+            <rect x="22" y="38" width="5" height="5" fill="currentColor"/>
+            <rect x="38" y="38" width="5" height="5" fill="currentColor"/>
+          </svg>
+          <div id="qr-drop-text">Glissez, collez ou sélectionnez une image<br>du QR Code de Pronote</div>
+        </div>
+        <canvas id="qr-decode-canvas" style="display:none"></canvas>
+      </div>
+      <button id="btn-paste-image" class="btn-secondary" style="margin-top:10px">📋 Coller une image (Ctrl+V)</button>
+      <div id="image-status" style="display:none" class="status-box"></div>
+    </div>
+
+    <!-- Sous-onglet : caméra -->
     <div class="tab-content" id="sub-scan">
       <div id="video-wrap">
         <video id="qr-video" autoplay playsinline muted></video>
@@ -151,21 +291,10 @@
           </svg>
         </div>
       </div>
-      <div id="scan-status" class="status-box status-info" style="display:none"></div>
-      <button id="btn-start-scan">▶ Démarrer le scan</button>
-      <button id="btn-stop-scan" style="display:none" class="btn-secondary">⏹ Arrêter</button>
+      <div id="scan-status" class="status-box status-info" style="margin-top:10px">🔍 Pointez la caméra vers le QR Code…</div>
+      <button id="btn-stop-scan" class="btn-secondary" style="display:none">⏹ Arrêter la caméra</button>
     </div>
 
-    <label style="margin-top:14px">PIN (4 chiffres)</label>
-    <input type="password" id="qr-pin" maxlength="4" pattern="\d{4}" inputmode="numeric" placeholder="1234" />
-
-    <div id="parent-section-qr" style="display:none;margin-top:14px">
-      <label>Compte parent — choisissez un enfant</label>
-      <div id="children-chips-qr"></div>
-      <input type="hidden" id="qr-childname" />
-    </div>
-
-    <button id="btn-setup-qr">✅ Valider le QR Code</button>
     <div id="qr-result" style="display:none" class="status-box"></div>
   </div>
 
@@ -185,12 +314,34 @@
       <option value="student">Élève</option>
       <option value="parent">Parent</option>
     </select>
-    <div id="parent-section-creds" style="display:none;margin-top:14px">
-      <label>Nom de l'enfant (si compte parent multi-enfants)</label>
-      <input type="text" id="creds-childname" placeholder="Prénom Nom" />
-    </div>
     <button id="btn-setup-creds">✅ Se connecter</button>
     <div id="creds-result" style="display:none" class="status-box"></div>
+  </div>
+</div>
+
+<!-- ── Panneau de logs ───────────────────────────────────────────── -->
+<div class="card" id="log-card">
+  <h2 onclick="toggleLogs()">🔍 Logs de diagnostic <span id="log-toggle" style="font-size:.75rem;color:var(--muted)">(cliquer pour réduire)</span></h2>
+  <div id="log-body">
+    <div id="log-output"></div>
+    <div id="log-actions">
+      <button class="btn-secondary" onclick="clearLogs()">🗑 Effacer</button>
+      <button class="btn-secondary" onclick="copyLogs()">📋 Copier</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Modale PIN ─────────────────────────────────────────────────── -->
+<div id="pin-modal">
+  <div id="pin-modal-box">
+    <h3>🔒 Code PIN Pronote</h3>
+    <p>QR Code détecté.<br>Saisissez votre code PIN à 4 chiffres.</p>
+    <input type="password" id="pin-input" maxlength="4" pattern="\d{4}" inputmode="numeric" placeholder="••••" />
+    <div id="pin-error"></div>
+    <div id="pin-modal-actions">
+      <button id="btn-pin-cancel">Annuler</button>
+      <button id="btn-pin-confirm">✅ Valider</button>
+    </div>
   </div>
 </div>
 
@@ -198,48 +349,135 @@
 <script>
 'use strict';
 
-/* ── Onglets ─────────────────────────────────────────────────────── */
-document.querySelectorAll('.tab-bar > .tab').forEach(tab => {
+/* ── Onglets principaux ──────────────────────────────────────────── */
+document.querySelectorAll('.tab-bar > .tab[data-tab]').forEach(tab => {
   tab.addEventListener('click', () => {
-    const bar = tab.parentElement;
-    bar.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.parentElement.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
-    const id = tab.dataset.tab || tab.dataset.sub;
-    if (tab.dataset.tab) {
-      document.querySelectorAll('.card > div[id^="tab-"]').forEach(c => c.classList.remove('active'));
-      document.getElementById('tab-' + id)?.classList.add('active');
+    document.querySelectorAll('.card > div[id^="tab-"]').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab-' + tab.dataset.tab)?.classList.add('active');
+    if (tab.dataset.tab !== 'qr') stopCamera();
+  });
+});
+
+/* ── Sous-onglets QR ─────────────────────────────────────────────── */
+document.querySelectorAll('.tab-bar > .tab[data-sub]').forEach(tab => {
+  tab.addEventListener('click', () => {
+    tab.parentElement.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelectorAll('#tab-qr .tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('sub-' + tab.dataset.sub)?.classList.add('active');
+    if (tab.dataset.sub === 'scan') {
+      startCamera();
     } else {
-      document.querySelectorAll('#tab-qr .tab-content').forEach(c => c.classList.remove('active'));
-      document.getElementById('sub-' + id)?.classList.add('active');
-      if (id === 'scan') startCamera(); else stopCamera();
+      stopCamera();
+      if (tab.dataset.sub === 'image') {
+        // Réinitialise la zone si on revient dessus sans QR en cours
+        if (!window._scannedQR) {
+          document.getElementById('qr-drop-text').textContent = 'Glissez, collez ou sélectionnez une image\ndu QR Code de Pronote';
+          document.getElementById('qr-drop-zone').classList.remove('decoded');
+          document.getElementById('image-status').style.display = 'none';
+        }
+      }
     }
   });
 });
 
-/* ── Statut ─────────────────────────────────────────────────────── */
+/* ── Statut ──────────────────────────────────────────────────────── */
 async function loadStatus() {
   try {
     const r   = await fetch('/MMM-pawmote/api/status');
     const sta = await r.json();
     const box = document.getElementById('status-content');
     const btn = document.getElementById('btn-clear');
-    if (sta.hasTokens && sta.hasPrimary) {
-      box.className = 'status-box status-ok';
-      let html = `<strong>✅ Connecté</strong> — ${sta.username || ''}`;
-      if (sta.isParent)  html += ` <span class="badge badge-ok">Parent</span>`;
-      if (sta.childName) html += ` · ${sta.childName}`;
+
+    if (!sta.hasTokens || !sta.hasPrimary) {
+      box.className = 'status-box status-err';
+      box.innerHTML = '<strong>❌ Aucun token</strong> — Veuillez vous authentifier ci-dessous.';
+      btn.style.display = 'none';
+      return;
+    }
+
+    /* Token présent — affiche l'état réel du module */
+    if (sta.moduleError) {
+      box.className = 'status-box status-err';
+      let html = `<strong>⚠️ Token expiré</strong> — ${sta.username || ''}`;
+      html += `<br><span style="font-size:.85rem;color:#f0a500">Le module MagicMirror ne peut pas se connecter : <em>${sta.moduleError}</em></span>`;
+      html += `<br><br>Veuillez vous ré-authentifier ci-dessous.`;
+      box.innerHTML = html;
+      btn.style.display = 'block';
+    } else {
+      box.className = sta.isConnected ? 'status-box status-ok' : 'status-box status-info';
+      let html = sta.isConnected
+        ? `<strong>✅ Connecté</strong> — ${sta.username || ''}`
+        : `<strong>⏳ Token présent</strong> — ${sta.username || ''} (connexion en cours…)`;
+      if (sta.isParent) html += ` <span class="badge badge-ok">👨‍👩‍👧 Compte Parent</span>`;
       html += `<br>Token principal : <span class="badge badge-ok">OK</span>`;
       html += ` Token backup : <span class="badge ${sta.hasBackup ? 'badge-ok' : 'badge-no'}">${sta.hasBackup ? 'OK' : 'absent'}</span>`;
       box.innerHTML = html;
       btn.style.display = 'block';
-    } else {
-      box.className = 'status-box status-err';
-      box.innerHTML = '<strong>❌ Aucun token</strong> — Veuillez vous authentifier ci-dessous.';
-      btn.style.display = 'none';
+    }
+
+    /* Affiche enfants + exemple config si compte parent */
+    if (sta.isParent && sta.children && sta.children.length > 0) {
+      showChildrenAndConfig(sta.children, box);
     }
   } catch { document.getElementById('status-content').textContent = 'Impossible de récupérer le statut.'; }
 }
-loadStatus();
+
+function showChildrenAndConfig(children, appendTo) {
+  let html = `<hr style="border-color:var(--border);margin:14px 0">`;
+  html += `<strong>Enfants détectés :</strong>`;
+  html += `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px">`;
+  for (const child of children) {
+    const firstName = child.name.split(' ').pop();
+    html += `<div style="background:var(--accent);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:.85rem">`;
+    html += `<strong>${child.name}</strong>`;
+    if (child.className) html += `<br><span style="color:var(--muted);font-size:.78rem">${child.className}</span>`;
+    if (child.establishmentName) html += `<br><span style="color:var(--muted);font-size:.72rem">${child.establishmentName}</span>`;
+    html += `</div>`;
+  }
+  html += `</div>`;
+  html += `<details style="margin-top:12px"><summary style="cursor:pointer;font-size:.85rem;color:var(--highlight)">📋 Exemple de configuration config.js</summary>`;
+  html += `<pre style="margin:8px 0 0;background:#0d0d1a;border:1px solid var(--border);border-radius:6px;padding:12px;font-size:.75rem;overflow-x:auto;color:#eee">`;
+  for (const child of children) {
+    const firstName = child.name.split(' ').pop();
+    html += `{
+  module: "MMM-pawmote",
+  position: "top_left",
+  header: "${firstName}",
+  config: {
+    childName: "${firstName}",
+    updateInterval: "15m",
+    Timetable:   { display: true, displayToday: true, displayNextDay: true, displayTeacher: true, displayRoom: true, showFrom: "06:00", showUntil: "22:00" },
+    Homeworks:   { display: true, searchDays: 14, showFrom: "06:00", showUntil: "22:00" },
+    Grades:      { display: true, displayDuration: 30, number: 10, showFrom: "06:00", showUntil: "22:00" },
+    Absences:    { display: true, displayDuration: 60, number: 5,  showFrom: "06:00", showUntil: "22:00" },
+    Delays:      { display: true, displayDuration: 60, number: 5,  showFrom: "06:00", showUntil: "22:00" },
+    Punishments: { display: true, displayDuration: 60, number: 5,  showFrom: "06:00", showUntil: "22:00" }
+  }
+},\n`;
+  }
+  html = html.replace(/,\n$/, '\n');
+  html += `</pre></details>`;
+  appendTo.innerHTML += html;
+}
+/* ── Polling du statut ───────────────────────────────────────────── */
+let _statusPollTimer = null;
+let _lastStatusJson  = null;
+
+function _scheduleStatusPoll(delayMs) {
+  clearTimeout(_statusPollTimer);
+  _statusPollTimer = setTimeout(async () => {
+    await loadStatus();
+    /* Si non encore connecté → repoll rapide (10 s), sinon lent (30 s) */
+    const box = document.getElementById('status-content');
+    const fast = box.classList.contains('status-info') || box.classList.contains('status-err');
+    _scheduleStatusPoll(fast ? 10_000 : 30_000);
+  }, delayMs);
+}
+
+loadStatus().then(() => _scheduleStatusPoll(10_000));
 
 document.getElementById('btn-clear').addEventListener('click', async () => {
   if (!confirm('Supprimer tous les tokens ? Le module devra être reconfiguré.')) return;
@@ -247,60 +485,158 @@ document.getElementById('btn-clear').addEventListener('click', async () => {
   loadStatus();
 });
 
-/* ── QR Code — validation ─────────────────────────────────────── */
-document.getElementById('btn-setup-qr').addEventListener('click', async () => {
-  const btn    = document.getElementById('btn-setup-qr');
-  const result = document.getElementById('qr-result');
-  const json   = document.getElementById('qr-json').value.trim();
-  const pin    = document.getElementById('qr-pin').value.trim();
-  if (!json && !window._scannedQR) { showResult(result, 'error', 'Veuillez coller le JSON du QR Code ou le scanner.'); return; }
-  if (!/^\d{4}$/.test(pin))        { showResult(result, 'error', 'PIN invalide : 4 chiffres requis.'); return; }
+/* ── Init ────────────────────────────────────────────────────────── */
+window.addEventListener('load', () => {
+  setTimeout(() => {
+    clog.info('Page chargée — jsQR disponible : ' + (typeof jsQR === 'function' ? '✅ oui' : '❌ NON'));
+    clog.info('User-Agent : ' + navigator.userAgent.substring(0, 80));
+  }, 300);
+});
+
+/* ── Logs ────────────────────────────────────────────────────────── */
+function _log(level, msg) {
+  const out = document.getElementById('log-output');
+  if (!out) return;
+  const ts   = new Date().toLocaleTimeString('fr-FR', { hour12: false });
+  const line = document.createElement('div');
+  line.innerHTML = `<span class="log-ts">[${ts}]</span><span class="log-${level}">${msg}</span>`;
+  out.appendChild(line);
+  out.scrollTop = out.scrollHeight;
+  console[level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log'](`[MMM-pawmote config] ${msg}`);
+}
+const clog = {
+  info:  msg => _log('info',  msg),
+  ok:    msg => _log('ok',    msg),
+  warn:  msg => _log('warn',  msg),
+  error: msg => _log('error', msg),
+};
+
+function toggleLogs() {
+  const body   = document.getElementById('log-body');
+  const toggle = document.getElementById('log-toggle');
+  const hidden = body.style.display === 'none';
+  body.style.display  = hidden ? 'block' : 'none';
+  toggle.textContent  = hidden ? '(cliquer pour réduire)' : '(cliquer pour afficher)';
+}
+function clearLogs()  { document.getElementById('log-output').innerHTML = ''; }
+function copyLogs()   {
+  const text = [...document.getElementById('log-output').querySelectorAll('div')]
+    .map(d => d.textContent).join('\n');
+  navigator.clipboard.writeText(text).then(() => clog.ok('Logs copiés dans le presse-papier'));
+}
+
+/* ── Modale PIN ──────────────────────────────────────────────────── */
+window._scannedQR = null;
+
+function openPinModal() {
+  document.getElementById('pin-input').value = '';
+  document.getElementById('pin-error').textContent = '';
+  document.getElementById('pin-modal').classList.add('open');
+  setTimeout(() => document.getElementById('pin-input').focus(), 100);
+}
+
+function closePinModal() {
+  document.getElementById('pin-modal').classList.remove('open');
+}
+
+document.getElementById('btn-pin-cancel').addEventListener('click', () => {
+  closePinModal();
+  window._scannedQR = null;
+  // Réinitialise le statut scan si on était en mode scan
+  const scanStatus = document.getElementById('scan-status');
+  scanStatus.textContent = '🔍 Pointez la caméra vers le QR Code…';
+  scanStatus.className   = 'status-box status-info';
+});
+
+// Valider avec Entrée
+document.getElementById('pin-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-pin-confirm').click();
+});
+
+document.getElementById('btn-pin-confirm').addEventListener('click', async () => {
+  const pin = document.getElementById('pin-input').value.trim();
+  if (!/^\d{4}$/.test(pin)) {
+    document.getElementById('pin-error').textContent = 'PIN invalide : 4 chiffres requis.';
+    clog.warn('PIN invalide saisi : ' + JSON.stringify(pin));
+    return;
+  }
+  document.getElementById('pin-error').textContent = '';
+
+  const btn = document.getElementById('btn-pin-confirm');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Connexion…';
-  result.style.display = 'none';
+
   try {
-    const qrToken   = json || window._scannedQR;
-    const childName = document.getElementById('qr-childname').value || '';
+    const qrToken   = window._scannedQR;
+    const childName = '';
+
+    clog.info('Envoi setup-qr → PIN=' + '*'.repeat(pin.length) + ' | childName=' + (childName || '(vide)'));
+    clog.info('qrToken type=' + typeof qrToken + ' | longueur=' + (qrToken ? String(qrToken).length : 0));
+
+    // Vérification préalable du contenu JSON
+    try {
+      const parsed = JSON.parse(typeof qrToken === 'string' ? qrToken : JSON.stringify(qrToken));
+      clog.info('QR champs : jeton=' + (parsed.jeton ? '✓ (' + String(parsed.jeton).length + ' car.)' : '✗ ABSENT')
+        + ' | login=' + (parsed.login ? '✓' : '✗ ABSENT')
+        + ' | url=' + (parsed.url || '✗ ABSENT'));
+    } catch (pe) {
+      clog.error('qrToken non parseable : ' + pe.message);
+    }
+
     const resp = await fetch('/MMM-pawmote/api/setup-qr', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ qrToken, pin, childName })
     });
+    clog.info('Réponse HTTP : ' + resp.status + ' ' + resp.statusText);
     const data = await resp.json();
+    clog.info('Réponse JSON : ' + JSON.stringify(data));
     if (!resp.ok) throw new Error(data.error || resp.statusText);
-    if (data.isParent && data.children?.length > 1) {
-      document.getElementById('parent-section-qr').style.display = 'block';
-      buildChildChips('children-chips-qr', 'qr-childname', data.children);
-      showResult(result, 'ok', `✅ Compte parent connecté — ${data.username}<br>Sélectionnez un enfant ci-dessus puis re-validez.`);
-    } else {
-      showResult(result, 'ok', `✅ Connexion réussie — ${data.username}`);
-      loadStatus();
-    }
-  } catch (e) { showResult(result, 'error', '❌ Erreur : ' + e.message); }
-  finally { btn.disabled = false; btn.innerHTML = '✅ Valider le QR Code'; }
+
+    closePinModal();
+    clog.ok('Connexion réussie — ' + data.username + (data.isParent ? ' [PARENT]' : ' [ELEVE]'));
+    if (data.isParent) clog.info('Enfants : ' + (data.children || []).map(c => c.name).join(', '));
+    showResult(document.getElementById('qr-result'), 'ok', `✅ Connexion réussie — ${data.username}`);
+    loadStatus();
+  } catch (e) {
+    document.getElementById('pin-error').textContent = '❌ ' + e.message;
+    clog.error('Échec setup-qr : ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '✅ Valider';
+  }
 });
 
-function buildChildChips(containerId, hiddenInputId, children) {
-  const wrap = document.getElementById(containerId);
-  const inp  = document.getElementById(hiddenInputId);
-  wrap.innerHTML = '';
-  children.forEach(c => {
-    const chip = document.createElement('div');
-    chip.className = 'child-chip';
-    chip.textContent = c.name || c;
-    chip.addEventListener('click', () => {
-      wrap.querySelectorAll('.child-chip').forEach(x => x.classList.remove('selected'));
-      chip.classList.add('selected');
-      inp.value = c.name || c;
-    });
-    wrap.appendChild(chip);
-  });
-  if (children.length === 1) wrap.querySelector('.child-chip')?.click();
-}
-
-/* ── Identifiants ─────────────────────────────────────────────── */
-document.getElementById('creds-type').addEventListener('change', function () {
-  document.getElementById('parent-section-creds').style.display = this.value === 'parent' ? 'block' : 'none';
+/* ── Détection JSON collé ────────────────────────────────────────── */
+document.getElementById('qr-json').addEventListener('input', function () {
+  const raw = this.value.trim();
+  const statusEl = document.getElementById('paste-status');
+  if (!raw) {
+    statusEl.style.display = 'none';
+    window._scannedQR = null;
+    return;
+  }
+  clog.info('JSON saisi — longueur : ' + raw.length + ' car.');
+  try {
+    const parsed = JSON.parse(raw);
+    clog.info('Champs détectés : ' + Object.keys(parsed).join(', '));
+    if (!parsed.jeton) { clog.warn('Champ "jeton" manquant'); throw new Error('Champ "jeton" manquant'); }
+    if (!parsed.url)   { clog.warn('Champ "url" manquant');   throw new Error('Champ "url" manquant'); }
+    window._scannedQR = raw;
+    clog.ok('JSON valide — url : ' + parsed.url + ' | jeton : ' + String(parsed.jeton).substring(0, 16) + '…');
+    statusEl.style.display = 'block';
+    statusEl.className = 'status-box status-ok';
+    statusEl.textContent = '✅ JSON valide — ' + parsed.url;
+    openPinModal();
+  } catch (e) {
+    window._scannedQR = null;
+    clog.error('JSON invalide : ' + e.message);
+    statusEl.style.display = 'block';
+    statusEl.className = 'status-box status-err';
+    statusEl.textContent = '❌ JSON invalide : ' + e.message;
+  }
 });
+
+/* ── Identifiants ────────────────────────────────────────────────── */
 
 document.getElementById('btn-setup-creds').addEventListener('click', async () => {
   const btn    = document.getElementById('btn-setup-creds');
@@ -309,7 +645,6 @@ document.getElementById('btn-setup-creds').addEventListener('click', async () =>
   const username = document.getElementById('creds-user').value.trim();
   const password = document.getElementById('creds-pass').value;
   const isParent = document.getElementById('creds-type').value === 'parent';
-  const childName = document.getElementById('creds-childname').value.trim();
   if (!url || !username || !password) { showResult(result, 'error', 'Veuillez remplir tous les champs obligatoires.'); return; }
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Connexion…';
@@ -317,7 +652,7 @@ document.getElementById('btn-setup-creds').addEventListener('click', async () =>
   try {
     const resp = await fetch('/MMM-pawmote/api/setup-credentials', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, username, password, isParent, childName })
+      body: JSON.stringify({ url, username, password, isParent })
     });
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || resp.statusText);
@@ -327,51 +662,175 @@ document.getElementById('btn-setup-creds').addEventListener('click', async () =>
   finally { btn.disabled = false; btn.innerHTML = '✅ Se connecter'; }
 });
 
-/* ── Scan QR Code ──────────────────────────────────────────────── */
+/* ── Image QR Code ───────────────────────────────────────────────── */
+function decodeQRFromImage(img) {
+  clog.info('Décodage image — taille : ' + img.naturalWidth + 'x' + img.naturalHeight + 'px');
+  if (typeof jsQR !== 'function') { clog.error('jsQR non chargé !'); return null; }
+  const canvas = document.getElementById('qr-decode-canvas');
+  const ctx    = canvas.getContext('2d');
+  canvas.width  = img.naturalWidth  || img.width;
+  canvas.height = img.naturalHeight || img.height;
+  ctx.drawImage(img, 0, 0);
+  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  clog.info('Appel jsQR sur ' + imageData.width + 'x' + imageData.height + ' px (' + imageData.data.length + ' octets)');
+  const code = jsQR(imageData.data, imageData.width, imageData.height);
+  if (code) {
+    clog.ok('jsQR a trouvé un QR code — données : ' + String(code.data).substring(0, 60) + '…');
+  } else {
+    clog.warn('jsQR n\'a détecté aucun QR code dans l\'image');
+  }
+  return code?.data || null;
+}
+
+function handleQRImageFile(file) {
+  if (!file) { clog.warn('handleQRImageFile appelé sans fichier'); return; }
+  clog.info('Fichier reçu : ' + file.name + ' | type : ' + file.type + ' | taille : ' + file.size + ' o');
+  if (!file.type.startsWith('image/')) { clog.warn('Fichier ignoré — pas une image'); return; }
+
+  const statusEl  = document.getElementById('image-status');
+  const dropZone  = document.getElementById('qr-drop-zone');
+  const dropText  = document.getElementById('qr-drop-text');
+
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    clog.info('FileReader terminé — chargement de l\'image…');
+    const img = new Image();
+    img.onload = function() {
+      const result = decodeQRFromImage(img);
+      if (result) {
+        window._scannedQR = result;
+        dropZone.classList.add('decoded');
+        dropText.textContent = 'QR Code décodé avec succès !';
+        statusEl.style.display = 'block';
+        statusEl.className = 'status-box status-ok';
+        statusEl.textContent = '✅ QR Code détecté dans l\'image';
+        openPinModal();
+      } else {
+        dropZone.classList.remove('decoded');
+        dropText.textContent = 'Aucun QR Code détecté — réessayez avec une image plus nette';
+        statusEl.style.display = 'block';
+        statusEl.className = 'status-box status-err';
+        statusEl.textContent = '❌ Impossible de lire un QR Code dans cette image.';
+      }
+    };
+    img.onerror = () => clog.error('Impossible de charger l\'image dans un élément <img>');
+    img.src = ev.target.result;
+  };
+  reader.onerror = () => clog.error('FileReader erreur : ' + reader.error);
+  reader.readAsDataURL(file);
+}
+
+(function setupImageDrop() {
+  const dropZone  = document.getElementById('qr-drop-zone');
+  const fileInput = document.getElementById('qr-file-input');
+
+  dropZone.addEventListener('click', () => fileInput.click());
+
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) handleQRImageFile(fileInput.files[0]);
+    fileInput.value = '';
+  });
+
+  dropZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropZone.classList.add('drag-over');
+  });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) handleQRImageFile(file);
+  });
+
+  // Bouton coller
+  document.getElementById('btn-paste-image').addEventListener('click', async () => {
+    clog.info('Bouton coller cliqué — lecture du presse-papier…');
+    try {
+      const items = await navigator.clipboard.read();
+      clog.info('Presse-papier : ' + items.length + ' élément(s)');
+      for (const item of items) {
+        clog.info('Types disponibles : ' + item.types.join(', '));
+        const imgType = item.types.find(t => t.startsWith('image/'));
+        if (imgType) {
+          clog.info('Image trouvée : ' + imgType);
+          const blob = await item.getType(imgType);
+          handleQRImageFile(new File([blob], 'clipboard.png', { type: imgType }));
+          return;
+        }
+      }
+      clog.warn('Aucune image dans le presse-papier');
+    } catch (e) {
+      clog.error('Clipboard API : ' + e.message + ' — essayez Ctrl+V directement');
+    }
+  });
+
+  // Coller depuis le presse-papier (Ctrl+V) — actif sur toute la page quand l'onglet image est visible
+  document.addEventListener('paste', e => {
+    const isImageTabActive = document.getElementById('sub-image')?.classList.contains('active');
+    clog.info('Événement paste détecté — onglet image actif : ' + isImageTabActive);
+    if (!isImageTabActive) return;
+    const items = e.clipboardData?.items || [];
+    clog.info('Éléments dans le presse-papier : ' + items.length + ' — types : ' + [...items].map(i => i.type).join(', '));
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        clog.info('Image trouvée dans le presse-papier : ' + item.type);
+        handleQRImageFile(item.getAsFile());
+        break;
+      }
+    }
+    if (![...items].some(i => i.type.startsWith('image/'))) {
+      clog.warn('Aucune image dans le presse-papier');
+    }
+  });
+})();
+
+/* ── Scan caméra ─────────────────────────────────────────────────── */
 let _stream = null, _scanInterval = null;
-window._scannedQR = null;
 
 async function startCamera() {
+  if (_stream) return;
+  const scanStatus = document.getElementById('scan-status');
+  scanStatus.textContent = '🔍 Pointez la caméra vers le QR Code…';
+  scanStatus.className   = 'status-box status-info';
   try {
     _stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
     const video = document.getElementById('qr-video');
     video.srcObject = _stream;
-    document.getElementById('btn-start-scan').style.display = 'none';
-    document.getElementById('btn-stop-scan').style.display  = 'block';
-    document.getElementById('scan-status').style.display    = 'block';
-    document.getElementById('scan-status').textContent = '🔍 Scan en cours…';
-    document.getElementById('scan-status').className = 'status-box status-info';
+    document.getElementById('btn-stop-scan').style.display = 'block';
     const canvas = document.createElement('canvas');
     const ctx    = canvas.getContext('2d');
     _scanInterval = setInterval(() => {
       if (!video.videoWidth) return;
-      canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+      canvas.width  = video.videoWidth;
+      canvas.height = video.videoHeight;
       ctx.drawImage(video, 0, 0);
       const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const code = typeof jsQR === 'function' ? jsQR(img.data, img.width, img.height) : null;
       if (code?.data) {
         window._scannedQR = code.data;
-        document.getElementById('scan-status').textContent = '✅ QR Code détecté !';
-        document.getElementById('scan-status').className = 'status-box status-ok';
+        scanStatus.textContent = '✅ QR Code détecté !';
+        scanStatus.className   = 'status-box status-ok';
         stopCamera();
+        openPinModal();
       }
     }, 200);
   } catch (e) {
-    document.getElementById('scan-status').style.display = 'block';
-    document.getElementById('scan-status').textContent = '❌ Accès caméra refusé : ' + e.message;
-    document.getElementById('scan-status').className = 'status-box status-err';
+    scanStatus.textContent = '❌ Accès caméra refusé : ' + e.message;
+    scanStatus.className   = 'status-box status-err';
   }
 }
+
 function stopCamera() {
   clearInterval(_scanInterval);
+  _scanInterval = null;
   if (_stream) { _stream.getTracks().forEach(t => t.stop()); _stream = null; }
-  document.getElementById('btn-start-scan').style.display = 'block';
-  document.getElementById('btn-stop-scan').style.display  = 'none';
+  document.getElementById('btn-stop-scan').style.display = 'none';
 }
-document.getElementById('btn-start-scan').addEventListener('click', startCamera);
+
 document.getElementById('btn-stop-scan').addEventListener('click', stopCamera);
 
-/* ── Helper ─────────────────────────────────────────────────────── */
+/* ── Helper ──────────────────────────────────────────────────────── */
 function showResult(el, type, html) {
   el.style.display = 'block';
   el.className     = 'status-box ' + (type === 'ok' ? 'status-ok' : 'status-err');

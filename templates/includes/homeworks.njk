@@ -7,7 +7,7 @@
         {% set lastDeadline = null %}
         {% for homework in userData.homeworks %}
             {% if (homework.done and config.Homeworks.displayDone) or not homework.done %}
-                {% if lastDeadline !== homework.deadline %}
+                {% if lastDeadline != homework.deadline %}
                     <div class="PRONOTE_HOMEWORKS_DATE">
                         <span>pour {{ homework.deadline }}</span>
                     </div>

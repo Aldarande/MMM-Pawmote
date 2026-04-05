@@ -12,6 +12,7 @@ Module.register('MMM-pawmote', {
     debug: false,
     language: null,           // null = utilise config.language de MagicMirror
     updateInterval: '15m',
+    childName: null,          // null = enfant par défaut du token (compte parent multi-enfants)
 
     Header: {
       displayEstablishmentName: true,
@@ -100,45 +101,59 @@ Module.register('MMM-pawmote', {
       return { loading: 'Connexion à Pronote…' };
     }
     if (this.error || !this.userData) {
+      const configPath = (this.error && this.error.configUrl) || '/MMM-pawmote/config';
       return {
-        error:     this.error || { message: 'Aucune donnée', configUrl: '/MMM-pawmote/config' },
-        configUrl: (this.error && this.error.configUrl) || '/MMM-pawmote/config'
+        error:         this.error || { message: 'Aucune donnée', configUrl: configPath },
+        configUrl:     configPath,
+        fullConfigUrl: window.location.origin + configPath
       };
     }
+    const vis = {
+      Timetable:   this._isVisible(this.config.Timetable),
+      Homeworks:   this._isVisible(this.config.Homeworks),
+      Grades:      this._isVisible(this.config.Grades),
+      Absences:    this._isVisible(this.config.Absences),
+      Delays:      this._isVisible(this.config.Delays),
+      Punishments: this._isVisible(this.config.Punishments)
+    };
+    Log.info(`[${this.name}] vis=${JSON.stringify(vis)} grades=${this.userData.grades?.length} absences=${this.userData.absences?.length}`);
     return {
       config:   this.config,
       userData: this.userData,
-      vis: {
-        Timetable:   this._isVisible(this.config.Timetable),
-        Homeworks:   this._isVisible(this.config.Homeworks),
-        Grades:      this._isVisible(this.config.Grades),
-        Absences:    this._isVisible(this.config.Absences),
-        Delays:      this._isVisible(this.config.Delays),
-        Punishments: this._isVisible(this.config.Punishments)
-      }
+      vis
     };
   },
 
   /* ── Visibilité horaire ─────────────────────────────────────────── */
   _isVisible (sectionCfg) {
     if (!sectionCfg || !sectionCfg.display) return false;
+    const now  = new Date();
+    const hhmm = now.getHours().toString().padStart(2, '0') + ':' +
+                 now.getMinutes().toString().padStart(2, '0');
+
+    /* Plusieurs tranches : showRanges: [{ from, until }, ...] */
+    if (Array.isArray(sectionCfg.showRanges) && sectionCfg.showRanges.length > 0) {
+      return sectionCfg.showRanges.some(r => hhmm >= (r.from || '00:00') && hhmm <= (r.until || '23:59'));
+    }
+
+    /* Tranche unique (rétrocompatibilité) : showFrom / showUntil */
     const from  = sectionCfg.showFrom  || '00:00';
     const until = sectionCfg.showUntil || '23:59';
-    const now   = new Date();
-    const hhmm  = now.getHours().toString().padStart(2, '0') + ':' +
-                  now.getMinutes().toString().padStart(2, '0');
     return hhmm >= from && hhmm <= until;
   },
 
   /* ── Notifications MagicMirror ──────────────────────────────────── */
   notificationReceived (notification) {
     if (notification === 'ALL_MODULES_STARTED') {
-      this.sendSocketNotification('SET_CONFIG', this.config);
+      this.sendSocketNotification('SET_CONFIG', { ...this.config, _instanceId: this.identifier });
     }
   },
 
   /* ── Notifications socket (NodeHelper) ─────────────────────────── */
   socketNotificationReceived (notification, payload) {
+    /* Filtre les messages destinés à cette instance */
+    if (payload && payload._instanceId && payload._instanceId !== this.identifier) return;
+
     switch (notification) {
 
       case 'INITIALIZED':

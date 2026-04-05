@@ -2,16 +2,12 @@
 
 /* =====================================================================
    MMM-pawmote — node_helper.js
-   Backend MagicMirror² — Pawnote rewrite-2.0
+   Backend MagicMirror² — Pawnote functional API rewrite
    ===================================================================== */
 
 const NodeHelper = require('node_helper');
 const path       = require('path');
 const fs         = require('fs');
-const { promisify } = require('util');
-const zlib       = require('zlib');
-const deflateRaw = promisify(zlib.deflateRaw);
-const inflateRaw = promisify(zlib.inflateRaw);
 
 const MODULE_NAME  = 'MMM-pawmote';
 const TOKEN_FILE   = path.join(__dirname, 'cache', 'tokens.json');
@@ -40,6 +36,235 @@ const Log = {
   error: (...a) => { const loc = _getCallerLoc(3); console.error(`[${MODULE_NAME}] ${loc}`, ...a); }
 };
 
+/* ── Requête brute protocole Pronote (portage pawjote) ───────────── */
+/* Nécessaire pour les comptes parents : les API publiques pawnote     */
+/* n'ajoutent pas sig.membre → AccessDeniedError sur DernieresNotes    */
+/* et PagePresence.                                                     */
+/* Structure interne pawnote rewrite-2.0 :                             */
+/*   session.information.{ order, id, accountKind, url,                */
+/*     skipCompression, skipEncryption, aesKey, aesIV }               */
+/*   session.queue.push(asyncFn) → Promise                             */
+/*   session.fetcher({ url, method, headers, content }) → { content }  */
+/*   W(session) → { data, orderNumber, secureData, requestId,          */
+/*                  signature, session }                                */
+/*   J.encrypt/decrypt (AES-CBC via node-forge)                        */
+/*   Q(session[, firstOrder]) → { key, iv }  (forge buffers)          */
+/*   pako.deflateRaw / pako.inflateRaw                                 */
+async function rawPronoteRequest(pawnoteModule, session, funcName, data, signature) {
+  /* Récupère les fonctions internes exposées par le module pawnote */
+  const forge = require(require.resolve('node-forge', { paths: [require.resolve('pawnote')] }));
+  const pako  = require(require.resolve('pako',       { paths: [require.resolve('pawnote')] }));
+
+  /* Réplique de W(session) — property names selon la version Pronote */
+  const ver = session.instance?.version;
+  const isNew = ver && (ver[0] > 2024 || (ver[0] === 2024 && ver[1] >= 3));
+  const props = isNew
+    ? { data: 'data', orderNumber: 'no', secureData: 'dataSec', requestId: 'id', signature: 'Signature', session: 'session' }
+    : { data: 'donneesSec',  orderNumber: 'numeroOrdre', secureData: 'crypTO', requestId: 'nom',    signature: 'genreErreur', session: 'session' };
+
+  /* Réplique de Q(session, firstOrder) */
+  const getKeys = (first = false) => {
+    const iv  = forge.util.createBuffer(first ? '' : session.information.aesIV);
+    const key = forge.util.createBuffer(session.information.aesKey);
+    return { key, iv };
+  };
+
+  /* AES-CBC encrypt/decrypt via node-forge (réplique de J) */
+  const aesEncrypt = (str) => {
+    const { key, iv } = getKeys();
+    const k2 = forge.md.md5.create().update(key.bytes()).digest();
+    const i2 = iv.length() ? forge.md.md5.create().update(iv.bytes()).digest()
+                            : forge.util.createBuffer().fillWithByte(0, 16);
+    const buf = forge.util.createBuffer(str);
+    const c = forge.cipher.createCipher('AES-CBC', k2);
+    c.start({ iv: i2 }); c.update(buf); c.finish();
+    return c.output.toHex();
+  };
+
+  const aesDecrypt = (hexStr) => {
+    const { key, iv } = getKeys();
+    const k2 = forge.md.md5.create().update(key.bytes()).digest();
+    const i2 = iv.length() ? forge.md.md5.create().update(iv.bytes()).digest()
+                            : forge.util.createBuffer().fillWithByte(0, 16);
+    const buf = forge.util.createBuffer(forge.util.binary.hex.decode(hexStr));
+    const c = forge.cipher.createDecipher('AES-CBC', k2);
+    c.start({ iv: i2 }); c.update(buf); c.finish();
+    return c.output.toString();
+  };
+
+  return session.queue.push(async () => {
+    /* ── Envoi ── */
+    session.information.order++;
+
+    /* generateOrder : chiffre le numéro d'ordre (premier appel : IV vide) */
+    const orderStr  = session.information.order.toString();
+    const { key: ok, iv: oi } = getKeys(session.information.order === 1);
+    const ok2 = forge.md.md5.create().update(ok.bytes()).digest();
+    const oi2 = oi.length() ? forge.md.md5.create().update(oi.bytes()).digest()
+                             : forge.util.createBuffer().fillWithByte(0, 16);
+    const oc  = forge.cipher.createCipher('AES-CBC', ok2);
+    oc.start({ iv: oi2 }); oc.update(forge.util.createBuffer(orderStr)); oc.finish();
+    const order = oc.output.toHex();
+
+    const url = new URL(`${session.information.url}/appelfonction/${session.information.accountKind}/${session.information.id}/${order}`);
+
+    /* Construit le payload */
+    const properties = {};
+    if (data)      properties[props.data]      = data;
+    if (signature) properties[props.signature] = signature;
+
+    let secureData;
+    if (!session.information.skipCompression || !session.information.skipEncryption) {
+      let payload = forge.util.encodeUtf8(JSON.stringify(properties));
+      if (!session.information.skipCompression) {
+        /* JSON → hex string → utf8 bytes → deflateRaw */
+        const hexStr  = forge.util.binary.hex.encode(forge.util.createBuffer(payload).bytes());
+        const deflated = pako.deflateRaw(forge.util.binary.raw.decode(hexStr));
+        payload = forge.util.binary.raw.encode(deflated);
+      }
+      if (!session.information.skipEncryption) {
+        payload = aesEncrypt(payload);
+      } else {
+        payload = forge.util.binary.hex.encode(forge.util.createBuffer(payload).bytes());
+      }
+      secureData = payload;
+    } else {
+      secureData = properties;
+    }
+
+    const body = JSON.stringify({
+      [props.orderNumber]: order,
+      [props.requestId]:   funcName,
+      [props.secureData]:  secureData,
+      [props.session]:     session.information.id
+    });
+
+    const result = await session.fetcher({
+      url,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 19_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 PRONOTE Mobile APP Version/2.0.11' },
+      content: body
+    });
+
+    /* ── Réception ── */
+    session.information.order++;
+    const json = JSON.parse(result.content);
+    if (json.Erreur) throw new Error(json.Erreur.Titre || 'Erreur serveur Pronote');
+
+    let respData = json[props.secureData];
+    if (typeof respData === 'string') {
+      let decoded = aesDecrypt(respData);
+      if (!session.information.skipCompression) {
+        const bytes   = forge.util.binary.raw.decode(decoded);
+        const hexStr  = forge.util.binary.hex.encode(bytes);
+        const inflated = pako.inflateRaw(forge.util.binary.raw.decode(hexStr));
+        decoded = forge.util.encodeUtf8(String.fromCharCode(...inflated));
+      }
+      respData = JSON.parse(decoded);
+    }
+
+    if (respData[props.signature]?.Erreur) throw new Error(respData[props.signature].MessageErreur || 'Erreur Pronote');
+    return respData[props.data];
+  });
+}
+
+/* ── Helpers protocole Pronote ───────────────────────────────────── */
+function encodePronoteDate(date) {
+  const d = date.getDate().toString().padStart(2, '0');
+  const m = (date.getMonth() + 1).toString().padStart(2, '0');
+  return `${d}/${m}/${date.getFullYear()} 00:00:00`;
+}
+
+function decodePronoteDate(v) {
+  if (!v) return null;
+  const m = v.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  return m ? new Date(`${m[3]}-${m[2]}-${m[1]}`) : null;
+}
+
+/* Parse "DD/MM/YYYY HH:MM:SS" (or date-only) → Date with correct local time */
+function parsePronoteFullDate(v) {
+  if (!v) return null;
+  const m = v.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2}):(\d{2}))?/);
+  if (!m) return null;
+  const d = new Date(parseInt(m[3]), parseInt(m[2]) - 1, parseInt(m[1]));
+  if (m[4]) d.setHours(parseInt(m[4]), parseInt(m[5]), parseInt(m[6] || 0), 0);
+  return d;
+}
+
+/* Parse raw ListeCours from PageEmploiDuTemps into pawnote-compatible entries */
+function parseRawCourses(rawData, session) {
+  return (rawData?.ListeCours || []).map(e => {
+    const startDate = parsePronoteFullDate(e.DateDuCours?.V);
+    if (!startDate) return null;
+
+    let endDate;
+    if (typeof e.DateDuCoursFin?.V === 'string') {
+      endDate = parsePronoteFullDate(e.DateDuCoursFin.V) || startDate;
+    } else {
+      const place        = e.place || 0;
+      const duree        = e.duree || 1;
+      const endings      = session.instance?.endings || [];
+      const blocksPerDay = session.instance?.blocksPerDay || 8;
+      const endIdx       = (place % blocksPerDay) + duree - 1;
+      const endSlot      = endings[Math.min(endIdx, endings.length - 1)];
+      if (endSlot) {
+        const [h, mn] = endSlot.split('h').map(Number);
+        endDate = new Date(startDate);
+        endDate.setHours(h, mn || 0, 0, 0);
+      } else {
+        endDate = new Date(startDate.getTime() + duree * 15 * 60 * 1000);
+      }
+    }
+
+    let subjectName = '', teacherName = '', classroomName = '';
+    for (const item of e.ListeContenus?.V || []) {
+      switch (item.G) {
+        case 16: subjectName    = item.L || ''; break;
+        case 3:  if (!teacherName)   teacherName   = item.L || ''; break;
+        case 17: if (!classroomName) classroomName = item.L || ''; break;
+      }
+    }
+
+    return {
+      is:           (typeof e.estRetenue !== 'undefined') ? 'detention' : 'lesson',
+      subject:      subjectName ? { name: subjectName } : null,
+      teacherNames: teacherName   ? [teacherName]   : [],
+      classrooms:   classroomName ? [classroomName] : [],
+      startDate,
+      endDate,
+      canceled:     !!e.estAnnule,
+      status:       e.Statut || ''
+    };
+  }).filter(Boolean);
+}
+
+/* Parse raw ListeTravauxAFaire from PageCahierDeTexte */
+function parseRawAssignments(rawData) {
+  return (rawData?.ListeTravauxAFaire?.V || []).map(e => {
+    const deadline = decodePronoteDate(e.PourLe?.V);
+    if (!deadline) return null;
+    let description = '';
+    if (e.descriptif?.V) description = String(e.descriptif.V).replace(/<[^>]*>/g, '').trim();
+    return {
+      subject:     { name: e.Matiere?.V?.L || '' },
+      description,
+      done:        !!e.TAFFait,
+      deadline
+    };
+  }).filter(Boolean);
+}
+
+function decodeGradeValue(v) {
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') {
+    const parts = v.split('|');
+    if (parts.length >= 2 && parseInt(parts[1]) === 1) return null; // absent/non noté
+    const n = parseFloat(v.replace(',', '.'));
+    return isNaN(n) ? null : n;
+  }
+  return null;
+}
+
 /* ── Calcul semaine Pronote (1er lundi de septembre) ─────────────── */
 function getPronoteWeek(date) {
   const d = new Date(date);
@@ -51,6 +276,20 @@ function getPronoteWeek(date) {
   if      (dow === 0) firstMon.setDate(sep1.getDate() + 1);
   else if (dow !== 1) firstMon.setDate(sep1.getDate() + (8 - dow));
   return Math.max(1, Math.floor((d.getTime() - firstMon.getTime()) / (7 * 24 * 3600 * 1000)) + 1);
+}
+
+/* Détermine si une erreur Pawnote est due à une expiration de session/token
+ * (dans ce cas le backup doit être utilisé) ou à un problème réseau/serveur
+ * (dans ce cas le primary est encore valide et sera réessayé au prochain cycle). */
+function _isAuthError (e) {
+  if (!e) return false;
+  const name = e.constructor?.name || '';
+  const msg  = (e.message || '').toLowerCase();
+  /* Classes d'erreur pawnote explicitement liées à l'auth */
+  if (['SessionExpiredError', 'AuthenticateError', 'BadCredentialsError',
+       'AccessDeniedError', 'AccountDisabledError'].includes(name)) return true;
+  /* Mots-clés dans le message d'erreur */
+  return /expir|invalid.*(token|session)|session.*invalid|connexion.*refus|auth/i.test(msg);
 }
 
 /* ── Simple body-parser JSON (sans dépendance express) ──────────── */
@@ -68,121 +307,36 @@ function jsonBodyMiddleware(req, res, next) {
   }
 }
 
-/* ── Requête brute Pronote (grades & carnet — non exposés en rewrite-2.0) */
-async function rawPronoteRequest(session, funcName, data, signature) {
-  const {
-    bytesToHex, utf8ToBytes, hexToBytes, bytesToUtf8
-  } = require(require.resolve('@noble/ciphers/utils.js', { paths: [PAWNOTE_DIR] }));
-
-  const UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 19_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 PRONOTE Mobile APP Version/2.0.11';
-
-  return session.api.queue.run(async () => {
-    session.api.order++;
-    const order = bytesToHex(session.aes.encrypt(session.api.order));
-    const url   = `${session.url}/appelfonction/${session.homepage.webspace}/${session.homepage.id}/${order}`;
-    const props = session.api.properties;
-
-    const properties = {};
-    if (data)      properties[props.data]      = data;
-    if (signature) properties[props.signature] = signature;
-
-    let payload;
-    if (!session.api.skipCompression || !session.api.skipEncryption) {
-      payload = utf8ToBytes(JSON.stringify(properties));
-    }
-    if (!session.api.skipCompression) {
-      const hexed = utf8ToBytes(bytesToHex(payload));
-      payload = new Uint8Array(await deflateRaw(Buffer.from(hexed)));
-    }
-    if (!session.api.skipEncryption) {
-      payload = session.aes.encrypt(payload);
-    }
-    const secureData = payload ? bytesToHex(payload) : properties;
-    const body = JSON.stringify({
-      [props.orderNumber]: order,
-      [props.requestId]:   funcName,
-      [props.secureData]:  secureData,
-      [props.session]:     session.homepage.id
-    });
-
-    const resp = await fetch(url, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'User-Agent': UA },
-      body
-    });
-    const content = await resp.text();
-
-    session.api.order++;
-    const json = JSON.parse(content);
-    if (json.Erreur) throw new Error(json.Erreur.Titre || 'Erreur serveur Pronote');
-
-    let respData = json[props.secureData];
-    if (typeof respData === 'string') {
-      let bytes = hexToBytes(respData);
-      if (!session.api.skipEncryption)  bytes = session.aes.decrypt(bytes);
-      if (!session.api.skipCompression) bytes = new Uint8Array(await inflateRaw(Buffer.from(bytes)));
-      respData = JSON.parse(bytesToUtf8(bytes));
-    }
-    if (respData[props.signature]?.Erreur) throw new Error(respData[props.signature].MessageErreur);
-    return respData[props.data];
-  });
-}
-
-/* ── Décodeurs helpers ───────────────────────────────────────────── */
-function decodeGradeValue(v) {
-  if (typeof v === 'number') return v;
-  if (typeof v === 'string') {
-    const parts = v.split('|');
-    if (parts.length >= 2 && parseInt(parts[1]) === 1) return null;
-    const n = parseFloat(v.replace(',', '.'));
-    return isNaN(n) ? null : n;
-  }
-  return null;
-}
-function decodePronoteDate(v) {
-  if (!v) return null;
-  const m = v.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
-  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
-}
-function encodePronoteDate(date) {
-  const d = date.getDate().toString().padStart(2, '0');
-  const m = (date.getMonth() + 1).toString().padStart(2, '0');
-  return `${d}/${m}/${date.getFullYear()} 00:00:00`;
-}
+/* ── Formatters ─────────────────────────────────────────────────── */
 function formatTime(d, lang) {
   if (!d) return '';
   const dt = d instanceof Date ? d : new Date(d);
   if (isNaN(dt.getTime())) return '';
   return dt.toLocaleTimeString(lang || 'fr-FR', { hour: '2-digit', minute: '2-digit', hour12: false });
 }
+
 function formatDate(d, lang, opts) {
   if (!d) return '';
   const dt = d instanceof Date ? d : new Date(d);
   if (isNaN(dt.getTime())) return '';
   return dt.toLocaleDateString(lang || 'fr-FR', opts || {});
 }
-function getCurrentPeriod(user, today) {
-  const periods = user.parameters?.periods || [];
-  return periods.find(p =>
-    p.startDate && p.endDate &&
-    today >= new Date(p.startDate) && today <= new Date(p.endDate)
-  ) || periods[periods.length - 1] || null;
-}
+
 function isCancelled(e) {
-  if (typeof e.isLesson === 'function') return e.isLesson() && !!(e.canceled || e.cancelled);
-  return !!(e.canceled || e.cancelled || (e.status && /annul/i.test(e.status)));
+  return !!(e.canceled || (e.status && /annul/i.test(e.status)));
 }
+
 function mapTimetableEntry(e, lang) {
-  const isLsn = typeof e.isLesson === 'function' ? e.isLesson() : (e.is === 'lesson');
+  const isLsn = e.is === 'lesson';
   return {
-    subject:   isLsn ? (e.subject?.name || '') : (e.title || ''),
-    teacher:   Array.isArray(e.teachers)    ? e.teachers.join(', ')    : (Array.isArray(e.teacherNames) ? e.teacherNames.join(', ') : ''),
-    room:      Array.isArray(e.rooms)       ? e.rooms.join(', ')       : (Array.isArray(e.classrooms)   ? e.classrooms.join(', ')   : ''),
-    start:     formatTime(e.startDate, lang),
-    end:       formatTime(e.endDate,   lang),
-    cancelled: isCancelled(e),
-    isDetention: typeof e.isDetention === 'function' ? e.isDetention() : (e.is === 'detention'),
-    status:    e.status || ''
+    subject:     isLsn ? (e.subject?.name || '') : (e.title || ''),
+    teacher:     Array.isArray(e.teacherNames) ? e.teacherNames.join(', ') : '',
+    room:        Array.isArray(e.classrooms)   ? e.classrooms.join(', ')   : '',
+    start:       formatTime(e.startDate, lang),
+    end:         formatTime(e.endDate,   lang),
+    cancelled:   !!(e.canceled),
+    isDetention: e.is === 'detention',
+    status:      e.status || ''
   };
 }
 
@@ -193,58 +347,88 @@ module.exports = NodeHelper.create({
 
   /* ── Initialisation ──────────────────────────────────────────────── */
   start () {
-    this.config       = null;
-    this.updateTimer  = null;
-    this.isConnecting = false;
+    this.instances    = new Map(); // instanceId → { config, timer, isConnecting }
     this.pawnote      = null;
+    this.routesReady  = false;
+    /* Mutex de rotation de token : garantit qu'une seule instance à la fois
+     * effectue loginToken() pour éviter que Clara et Rafael n'utilisent
+     * simultanément le même token primaire (qui serait brûlé deux fois). */
+    this._tokenLock   = Promise.resolve();
     Log.info('Node helper started');
     this._setupRoutes();
   },
 
   /* ── Express — page de configuration ─────────────────────────────── */
   _setupRoutes () {
+    if (this.routesReady) return;
     const app = this.expressApp;
+    if (!app) {
+      Log.warn('expressApp non disponible — nouvelle tentative dans 2s');
+      setTimeout(() => this._setupRoutes(), 2000);
+      return;
+    }
+    this.routesReady = true;
+    Log.info('Routes Express enregistrées');
 
     /* Page HTML de configuration */
     app.get('/MMM-pawmote/config', (req, res) => {
       res.sendFile(path.join(__dirname, 'config-page', 'index.html'));
     });
 
-    /* API — statut du token */
+    /* Page de documentation */
+    app.get('/MMM-pawmote/docs', (req, res) => {
+      res.sendFile(path.join(__dirname, 'config-page', 'docs.html'));
+    });
+
+    /* API — contenu brut du README (pour la page docs) */
+    app.get('/MMM-pawmote/api/readme', (req, res) => {
+      const readmePath = path.join(__dirname, 'README.md');
+      fs.readFile(readmePath, 'utf8', (err, data) => {
+        if (err) return res.status(500).send('README introuvable');
+        res.type('text/plain; charset=utf-8').send(data);
+      });
+    });
+
+    /* API — statut du token + état module */
     app.get('/MMM-pawmote/api/status', (req, res) => {
       const t = this._loadTokens();
+      /* Collecte l'état de toutes les instances */
+      let moduleError = null;
+      let anyConnected = false;
+      for (const [, state] of this.instances) {
+        if (state.lastError && !moduleError) moduleError = state.lastError;
+        if (state.isConnected) anyConnected = true;
+      }
       res.json({
-        hasTokens:  !!t,
-        hasPrimary: !!(t?.primary?.token),
-        hasBackup:  !!(t?.backup?.token),
-        url:         t?.pronote_url || '',
-        username:    t?.username    || '',
-        isParent:    t?.isParent    || false,
-        childName:   t?.childName   || '',
-        children:    t?.children    || []
+        hasTokens:   !!t,
+        hasPrimary:  !!(t?.primary?.token),
+        hasBackup:   !!(t?.backup?.token),
+        url:          t?.pronote_url || '',
+        username:     t?.username    || '',
+        isParent:     t?.isParent    || false,
+        childName:    t?.childName   || '',
+        children:     t?.children    || [],
+        moduleError,
+        isConnected:  anyConnected
       });
     });
 
     /* API — connexion initiale QR Code */
     app.post('/MMM-pawmote/api/setup-qr', jsonBodyMiddleware, async (req, res) => {
       try {
-        const { qrToken, pin, url, childName } = req.body;
+        const { qrToken, pin, childName } = req.body;
         if (!qrToken || !pin) return res.status(400).json({ error: 'qrToken et pin requis' });
-
-        const qrData = typeof qrToken === 'string' ? JSON.parse(qrToken) : qrToken;
-        const pronoteUrl = String(url || qrData.url || qrData.pronote_url || '')
-          .replace(/\/mobile\.[^/]+\.html.*$/, '');
-
-        if (!pronoteUrl) return res.status(400).json({ error: 'URL Pronote non détectée dans le QR Code' });
         if (!/^\d{4}$/.test(String(pin))) return res.status(400).json({ error: 'PIN invalide (4 chiffres requis)' });
 
-        Log.info('Setup QR Code — URL:', pronoteUrl);
-        const result = await this._connectQR({ qrData, pin: String(pin), pronoteUrl, childName });
+        Log.info('Setup QR Code…');
+        const result = await this._connectQR({ qrToken, pin: String(pin), childName });
         res.json({ ok: true, username: result.username, isParent: result.isParent, children: result.children });
 
-        /* Déclenche la collecte de données */
-        this.sendSocketNotification('TOKEN_SAVED', { username: result.username });
-        setTimeout(() => this._connectAndFetch(), 500);
+        /* Notifie toutes les instances et déclenche leur collecte */
+        for (const [id] of this.instances) {
+          this.sendSocketNotification('TOKEN_SAVED', { username: result.username, _instanceId: id });
+        }
+        setTimeout(() => { for (const [id] of this.instances) this._connectAndFetch(id); }, 500);
       } catch (e) {
         Log.error('Setup QR:', e.message);
         res.status(500).json({ error: e.message });
@@ -261,8 +445,10 @@ module.exports = NodeHelper.create({
         const result = await this._connectCredentials({ url, username, password, isParent: !!isParent, childName });
         res.json({ ok: true, username: result.username, isParent: result.isParent, children: result.children });
 
-        this.sendSocketNotification('TOKEN_SAVED', { username: result.username });
-        setTimeout(() => this._connectAndFetch(), 500);
+        for (const [id] of this.instances) {
+          this.sendSocketNotification('TOKEN_SAVED', { username: result.username, _instanceId: id });
+        }
+        setTimeout(() => { for (const [id] of this.instances) this._connectAndFetch(id); }, 500);
       } catch (e) {
         Log.error('Setup credentials:', e.message);
         res.status(500).json({ error: e.message });
@@ -274,22 +460,54 @@ module.exports = NodeHelper.create({
       try {
         if (fs.existsSync(TOKEN_FILE)) fs.unlinkSync(TOKEN_FILE);
         res.json({ ok: true });
-        this.sendSocketNotification('TOKEN_CLEARED', {});
+        for (const [id] of this.instances) {
+          this.sendSocketNotification('TOKEN_CLEARED', { _instanceId: id });
+        }
       } catch (e) {
         res.status(500).json({ error: e.message });
       }
     });
   },
 
-  /* ── Chargement de Pawnote ────────────────────────────────────────── */
+  /* ── Chargement de Pawnote (API fonctionnelle) ───────────────────── */
   _loadPawnote () {
     if (this.pawnote) return this.pawnote;
     if (!fs.existsSync(PAWNOTE_DIR)) {
       throw new Error('Module pawnote absent — lancez npm install dans le dossier MMM-pawmote');
     }
     try {
-      this.pawnote = require(PAWNOTE_DIR);
-      Log.info('Pawnote chargé (CJS)');
+      const pw = require(PAWNOTE_DIR);
+      const {
+        createSessionHandle,
+        loginQrCode,
+        loginToken,
+        loginCredentials,
+        use,
+        timetableFromWeek,
+        parseTimetable,
+        assignmentsFromWeek,
+        gradesOverview,
+        notebook,
+        AccountKind,
+        TabLocation,
+        translateToWeekNumber
+      } = pw;
+      this.pawnote = {
+        createSessionHandle,
+        loginQrCode,
+        loginToken,
+        loginCredentials,
+        use,
+        timetableFromWeek,
+        parseTimetable,
+        assignmentsFromWeek,
+        gradesOverview,
+        notebook,
+        AccountKind,
+        TabLocation,
+        translateToWeekNumber
+      };
+      Log.info('Pawnote chargé (API fonctionnelle)');
       return this.pawnote;
     } catch (e) {
       Log.error('Impossible de charger pawnote:', e.message);
@@ -323,45 +541,65 @@ module.exports = NodeHelper.create({
     } catch (e) { Log.error('Sauvegarde tokens:', e.message); }
   },
 
-  _rotateToken (tokens, newToken) {
-    /* Rotation : ancien primary → backup, nouveau → primary */
+  _rotateToken (tokens, newToken, newNavigatorIdentifier) {
     const updated = { ...tokens };
     if (tokens.primary?.token) {
-      updated.backup = { token: tokens.primary.token, updatedAt: tokens.primary.updatedAt };
+      updated.backup = {
+        token:               tokens.primary.token,
+        navigatorIdentifier: tokens.primary.navigatorIdentifier,
+        updatedAt:           tokens.primary.updatedAt
+      };
     }
-    updated.primary = { token: newToken, updatedAt: new Date().toISOString() };
+    updated.primary = {
+      token:               newToken,
+      navigatorIdentifier: newNavigatorIdentifier || tokens.primary?.navigatorIdentifier,
+      updatedAt:           new Date().toISOString()
+    };
     this._saveTokens(updated);
     return updated;
   },
 
   /* ── Connexion initiale QR Code ───────────────────────────────────── */
-  async _connectQR ({ qrData, pin, pronoteUrl, childName }) {
+  async _connectQR ({ qrToken, pin, childName }) {
     const pw = this._loadPawnote();
     const deviceUUID = this._getOrCreateDeviceUUID();
-    const isParent   = pronoteUrl.toLowerCase().includes('parent');
-    const instance   = pw.Instance.fromURL(pronoteUrl);
-    const portal     = isParent ? new pw.ParentLoginPortal(instance) : new pw.StudentLoginPortal(instance);
+    const session    = pw.createSessionHandle();
+    const qrData     = typeof qrToken === 'string' ? JSON.parse(qrToken) : qrToken;
 
-    const auth = await portal.qrCode(qrData.jeton, qrData.login || undefined, pin, deviceUUID);
+    const refresh = await pw.loginQrCode(session, { deviceUUID, pin, qr: qrData });
+    /* refresh = { url, token, username, kind, navigatorIdentifier } */
 
-    if (auth.shouldCustomDoubleAuthMode) {
-      if (auth.hasIgnoreMode) auth.useIgnoreMode();
-      else if (auth.hasNotificationMode) auth.useNotificationMode();
+    const isParent = refresh.kind === pw.AccountKind.PARENT;
+    const resources = session.user?.resources || [];
+    const children  = resources.map(r => ({
+      id:               r.id,
+      kind:             r.kind,
+      name:             r.name,
+      className:        r.className        || '',
+      establishmentName: r.establishmentName || ''
+    }));
+
+    if (isParent && resources.length > 0) {
+      const child = childName
+        ? resources.find(r => r.name.toLowerCase().includes(childName.toLowerCase()))
+        : resources[0];
+      pw.use(session, child || resources[0]);
     }
-    if (auth.shouldRegisterSource) await auth.source('MMM-pawmote');
-
-    const user     = await portal.finish(auth);
-    const children = isParent ? (user.children || []).map(c => ({ id: c.id || '', name: c.name || '' })).filter(c => c.name) : [];
 
     const tokens = {
-      pronote_url: instance.base || pronoteUrl,
-      username:    user.username || '',
+      pronote_url: refresh.url,
+      username:    refresh.username,
+      kind:        refresh.kind,
       deviceUUID,
       isParent,
-      childName:   childName || (children.length === 1 ? children[0].name : ''),
+      childName:   childName || (isParent && resources.length === 1 ? resources[0].name : ''),
       children,
-      primary:  { token: user.token || '', updatedAt: new Date().toISOString() },
-      backup:   null
+      primary: {
+        token:               refresh.token,
+        navigatorIdentifier: refresh.navigatorIdentifier,
+        updatedAt:           new Date().toISOString()
+      },
+      backup: null
     };
     this._saveTokens(tokens);
     Log.info(`QR OK — ${tokens.username} (parent:${isParent})`);
@@ -370,32 +608,52 @@ module.exports = NodeHelper.create({
 
   /* ── Connexion par identifiants ───────────────────────────────────── */
   async _connectCredentials ({ url, username, password, isParent, childName }) {
-    const pw       = this._loadPawnote();
+    const pw         = this._loadPawnote();
     const deviceUUID = this._getOrCreateDeviceUUID();
-    const instance = pw.Instance.fromURL(url);
-    const portal   = isParent ? new pw.ParentLoginPortal(instance) : new pw.StudentLoginPortal(instance);
+    const session    = pw.createSessionHandle();
 
-    const auth = await portal.credentials(username, password, deviceUUID);
-
-    if (auth.shouldCustomDoubleAuthMode) {
-      if (auth.hasIgnoreMode) auth.useIgnoreMode();
-      else if (auth.hasNotificationMode) auth.useNotificationMode();
-    }
-    if (auth.shouldRegisterSource) await auth.source('MMM-pawmote');
-
-    const user     = await portal.finish(auth);
+    const cleanUrl   = url.replace(/\/mobile\.[^/]+\.html.*$/, '');
     const detectedParent = isParent || url.toLowerCase().includes('parent');
-    const children = detectedParent ? (user.children || []).map(c => ({ id: c.id || '', name: c.name || '' })).filter(c => c.name) : [];
+    const kind       = detectedParent ? pw.AccountKind.PARENT : pw.AccountKind.STUDENT;
+
+    const refresh = await pw.loginCredentials(session, {
+      url:      cleanUrl,
+      kind,
+      username,
+      password,
+      deviceUUID
+    });
+
+    const resources = session.user?.resources || [];
+    const children  = resources.map(r => ({
+      id:               r.id,
+      kind:             r.kind,
+      name:             r.name,
+      className:        r.className        || '',
+      establishmentName: r.establishmentName || ''
+    }));
+
+    if (detectedParent && resources.length > 0) {
+      const child = childName
+        ? resources.find(r => r.name.toLowerCase().includes(childName.toLowerCase()))
+        : resources[0];
+      pw.use(session, child || resources[0]);
+    }
 
     const tokens = {
-      pronote_url: instance.base || url,
-      username:    user.username || username,
+      pronote_url: refresh.url || cleanUrl,
+      username:    refresh.username || username,
+      kind:        refresh.kind,
       deviceUUID,
       isParent:    detectedParent,
-      childName:   childName || (children.length === 1 ? children[0].name : ''),
+      childName:   childName || (detectedParent && resources.length === 1 ? resources[0].name : ''),
       children,
-      primary:  { token: user.token || '', updatedAt: new Date().toISOString() },
-      backup:   null
+      primary: {
+        token:               refresh.token,
+        navigatorIdentifier: refresh.navigatorIdentifier,
+        updatedAt:           new Date().toISOString()
+      },
+      backup: null
     };
     this._saveTokens(tokens);
     Log.info(`Credentials OK — ${tokens.username} (parent:${detectedParent})`);
@@ -404,328 +662,433 @@ module.exports = NodeHelper.create({
 
   /* ── Connexion via token ─────────────────────────────────────────── */
   async _loginWithToken (tokenData, tokenEntry) {
-    const pw       = this._loadPawnote();
-    const instance = pw.Instance.fromURL(tokenData.pronote_url);
-    const portal   = tokenData.isParent ? new pw.ParentLoginPortal(instance) : new pw.StudentLoginPortal(instance);
+    const pw      = this._loadPawnote();
+    const session = pw.createSessionHandle();
 
-    const auth = await portal.token(tokenData.username, tokenEntry.token, tokenData.deviceUUID);
+    /* Backward compat: old tokens have isParent bool but no kind */
+    const kind = tokenData.kind ?? (tokenData.isParent ? pw.AccountKind.PARENT : pw.AccountKind.STUDENT);
 
-    if (auth.shouldCustomDoubleAuthMode) {
-      if (auth.hasIgnoreMode) auth.useIgnoreMode();
-      else if (auth.hasNotificationMode) auth.useNotificationMode();
+    const refresh = await pw.loginToken(session, {
+      url:                 tokenData.pronote_url,
+      kind,
+      username:            tokenData.username,
+      token:               tokenEntry.token,
+      deviceUUID:          tokenData.deviceUUID,
+      navigatorIdentifier: tokenEntry.navigatorIdentifier || undefined
+    });
+
+    /* Select child for parent accounts — tokenData.childName déjà surchargé par l'instance */
+    if (tokenData.isParent) {
+      const resources  = session.user?.resources || [];
+      const targetName = tokenData.childName || '';
+      const child = targetName
+        ? resources.find(r => r.name.toLowerCase().includes(targetName.toLowerCase()))
+        : resources[0];
+      if (child) {
+        pw.use(session, child);
+        Log.info(`Enfant sélectionné : ${child.name}`);
+      } else {
+        Log.warn(`Enfant "${targetName}" non trouvé, utilisation du premier disponible`);
+        if (resources[0]) pw.use(session, resources[0]);
+      }
     }
-    if (auth.shouldRegisterSource) await auth.source('MMM-pawmote');
 
-    const user = await portal.finish(auth);
-    /* Rotation du token */
-    const updatedTokens = this._rotateToken(tokenData, user.token || tokenEntry.token);
-    return { user, tokens: updatedTokens };
+    const updatedTokens = this._rotateToken(tokenData, refresh.token, refresh.navigatorIdentifier);
+    return { session, tokens: updatedTokens };
   },
 
-  /* ── Connexion + collecte principale ────────────────────────────── */
-  async _connectAndFetch () {
-    if (this.isConnecting) { Log.log('Connexion déjà en cours, ignorée'); return; }
-    this.isConnecting = true;
+  /* ── Connexion + collecte principale (par instance) ─────────────── */
+  async _connectAndFetch (instanceId) {
+    const state = this.instances.get(instanceId);
+    if (!state) return;
+    if (state.isConnecting) { Log.log(`Instance ${instanceId} — connexion déjà en cours`); return; }
+    state.isConnecting = true;
+
+    const notify = (notif, payload) =>
+      this.sendSocketNotification(notif, { ...payload, _instanceId: instanceId });
+
+    /* ── Mutex de rotation ─────────────────────────────────────────
+     * On attend que l'instance précédente ait fini sa rotation avant
+     * de lire les tokens sur disque. Ainsi Clara et Rafael ne lisent
+     * jamais le même token primaire simultanément.
+     * Le verrou est libéré DÈS QUE le login est terminé (pas après
+     * fetchAllData), pour ne pas bloquer l'autre instance trop longtemps. */
+    const prevLock = this._tokenLock;
+    let releaseLock;
+    this._tokenLock = new Promise(r => { releaseLock = r; });
+
     try {
+      await prevLock; // Attend la fin de la rotation précédente
+
+      /* Re-lit les tokens depuis le disque : une autre instance a peut-être
+       * déjà effectué la rotation et sauvegardé de nouveaux tokens. */
       const tokenData = this._loadTokens();
       if (!tokenData || !tokenData.primary?.token) {
-        Log.warn('Aucun token de connexion');
-        this.sendSocketNotification('ERROR', {
-          type:      'no_tokens',
-          message:   'Aucun token configuré. Configurez le module via la page web.',
-          configUrl: '/MMM-pawmote/config'
-        });
+        releaseLock();
+        Log.warn(`Instance ${instanceId} — aucun token`);
+        notify('ERROR', { type: 'no_tokens', message: 'Aucun token configuré.', configUrl: '/MMM-pawmote/config' });
         return;
       }
 
-      let user   = null;
-      let tokens = null;
+      const instanceConfig     = state.config;
+      const effectiveChildName = instanceConfig.childName || tokenData.childName || '';
+      const tokenDataWithChild = { ...tokenData, childName: effectiveChildName };
+
+      let session = null;
+      let tokens  = null;
 
       /* Essai primary */
       try {
-        Log.info('Connexion avec token primary…');
-        const r = await this._loginWithToken(tokenData, tokenData.primary);
-        user   = r.user;
-        tokens = r.tokens;
-        Log.info('Connecté via token primary');
+        Log.info(`Instance ${instanceId} — token primary (enfant: ${effectiveChildName || 'auto'})…`);
+        const r = await this._loginWithToken(tokenDataWithChild, tokenData.primary);
+        session = r.session; tokens = r.tokens;
+        Log.info(`Instance ${instanceId} — connecté`);
       } catch (e1) {
-        Log.warn('Token primary échoué:', e1.message);
+        Log.warn(`Instance ${instanceId} — primary échoué:`, e1.message);
 
-        if (!tokenData.backup?.token) {
-          Log.error('Pas de token backup disponible');
-          this.sendSocketNotification('ERROR', {
-            type:      'auth_failed',
-            message:   'Connexion impossible (token expiré). Reconfigurez le module.',
-            configUrl: '/MMM-pawmote/config'
-          });
+        /* Utilise le backup UNIQUEMENT en cas d'expiration de session/auth.
+         * Pour une erreur réseau on relâche sans toucher au backup —
+         * le prochain cycle réessaiera le même primary (encore valide). */
+        const isAuthError = _isAuthError(e1);
+        if (!isAuthError) {
+          releaseLock();
+          state.isConnected = false;
+          state.lastError   = e1.message;
+          notify('ERROR', { type: 'error', message: `Erreur réseau : ${e1.message}`, configUrl: '/MMM-pawmote/config' });
           return;
         }
 
-        /* Essai backup */
+        if (!tokenData.backup?.token) {
+          releaseLock();
+          state.isConnected = false;
+          state.lastError   = `Token expiré : ${e1.message}`;
+          notify('ERROR', { type: 'auth_failed', message: 'Token expiré. Reconfigurez le module.', configUrl: '/MMM-pawmote/config' });
+          return;
+        }
+
+        /* Backup : tente de renouveler les tokens */
         try {
-          Log.info('Connexion avec token backup…');
-          const r = await this._loginWithToken(tokenData, tokenData.backup);
-          user   = r.user;
-          tokens = r.tokens;
-          Log.info('Connecté via token backup');
+          Log.info(`Instance ${instanceId} — renouvellement via token backup…`);
+          const r = await this._loginWithToken(tokenDataWithChild, tokenData.backup);
+          session = r.session; tokens = r.tokens;
+          Log.info(`Instance ${instanceId} — connecté via backup, tokens renouvelés`);
         } catch (e2) {
-          Log.error('Token backup aussi échoué:', e2.message);
-          this.sendSocketNotification('ERROR', {
-            type:      'auth_failed',
-            message:   `Connexion impossible (les deux tokens ont échoué : ${e2.message}). Reconfigurez le module.`,
-            configUrl: '/MMM-pawmote/config'
-          });
+          releaseLock();
+          Log.error(`Instance ${instanceId} — backup expiré:`, e2.message);
+          state.isConnected = false;
+          state.lastError   = `Tokens expirés : ${e2.message}`;
+          notify('ERROR', { type: 'auth_failed', message: 'Tokens expirés. Reconfigurez le module.', configUrl: '/MMM-pawmote/config' });
           return;
         }
       }
 
-      /* Collecte des données */
-      const data = await this._fetchAllData(user, tokens);
-      this.sendSocketNotification('PRONOTE_UPDATED', data);
+      /* Login terminé — libère le mutex pour que les autres instances puissent tourner */
+      releaseLock();
+
+      /* Collecte des données (hors section critique) */
+      const data = await this._fetchAllData(session, tokens, tokenDataWithChild, instanceConfig);
+      state.isConnected = true;
+      state.lastError   = null;
+      notify('PRONOTE_UPDATED', data);
 
     } catch (e) {
-      Log.error('Erreur connexion/collecte:', e.message);
-      this.sendSocketNotification('ERROR', {
-        type:      'error',
-        message:   `Erreur inattendue : ${e.message}`,
-        configUrl: '/MMM-pawmote/config'
-      });
+      releaseLock?.();
+      Log.error(`Instance ${instanceId} — erreur:`, e.message);
+      state.isConnected = false;
+      state.lastError   = e.message;
+      notify('ERROR', { type: 'error', message: `Erreur inattendue : ${e.message}`, configUrl: '/MMM-pawmote/config' });
     } finally {
-      this.isConnecting = false;
+      state.isConnecting = false;
     }
   },
 
   /* ── Collecte des données ────────────────────────────────────────── */
-  async _fetchAllData (user, tokens) {
-    const today    = new Date();
-    const weekNum  = getPronoteWeek(today);
-    const isParent = tokens.isParent;
-    const lang     = this.config?.language || 'fr-FR';
-    const data     = {};
+  async _fetchAllData (session, tokens, tokenData, instanceConfig) {
+    const cfg   = instanceConfig || {};
+    const today = new Date();
+    const lang  = cfg.language || 'fr-FR'; // fallback fr-FR si MagicMirror n'a pas de langue définie
+    const pw    = this._loadPawnote();
+    const data  = {};
 
-    /* ---- Sélection du sujet (élève ou enfant parent) ---- */
-    let subject;
-    if (isParent) {
-      const childName = tokens.childName || '';
-      const children  = user.children || [];
-      subject = childName
-        ? children.find(c => c.name?.toLowerCase().includes(childName.toLowerCase()))
-        : null;
-      if (!subject && children.length > 0) subject = children[0];
-      if (!subject) throw new Error('Aucun enfant disponible dans le compte parent');
-      Log.info('Enfant sélectionné:', subject.name);
-
-      data.name          = subject.name || '';
-      data.className     = subject.studentClass || '';
-      data.establishment = subject.school || '';
-    } else {
-      subject            = user;
-      data.name          = user.username || '';
-      data.className     = user.user?.resource?.classeEleve?.name   || '';
-      data.establishment = user.user?.resource?.etablissement?.name || '';
-    }
+    /* User info from active resource */
+    const resource     = session.userResource;
+    data.name          = resource?.name             || '';
+    data.className     = resource?.className        || '';
+    data.establishment = resource?.establishmentName || '';
 
     Log.info(`Élève : ${data.name} — ${data.className} — ${data.establishment}`);
+
+    /* Week number using pawnote's firstMonday when available */
+    const firstMonday = session.instance?.firstMonday;
+    const weekNum = (firstMonday && pw.translateToWeekNumber)
+      ? pw.translateToWeekNumber(today, firstMonday)
+      : getPronoteWeek(today);
+
+    /* Tabs disponibles sur la ressource active */
+    const hasTimetable   = resource?.tabs?.has(pw.TabLocation.Timetable);
+    const hasAssignments = resource?.tabs?.has(pw.TabLocation.Assignments);
+    const hasGrades      = resource?.tabs?.has(pw.TabLocation.Grades ?? 198);
+    const hasNotebook    = resource?.tabs?.has(pw.TabLocation.Notebook);
+    Log.info(`Tabs — Timetable:${hasTimetable} Assignments:${hasAssignments} Grades:${hasGrades} Notebook:${hasNotebook}`);
+
+    /* ── Membre (enfant) pour les requêtes brutes parent ────────────── */
+    const childResource = session.userResource;
+    const memberPayload = (tokenData.isParent && childResource)
+      ? { G: childResource.kind, N: childResource.id }
+      : null;
 
     /* ---- Emploi du temps ---- */
     data.timetableToday   = [];
     data.timetableNextDay = { day: '', classes: [] };
-    try {
-      const tt = await subject.administration.getTimetableFromWeek(weekNum);
-      let allEntries;
-      try { allEntries = tt.filter ? tt.filter() : (tt.entries || []); }
-      catch { allEntries = tt.entries || []; }
 
-      const todayStr     = today.toDateString();
-      const todayEntries = allEntries.filter(e => e.startDate && new Date(e.startDate).toDateString() === todayStr);
-
-      /* Filtrer les cours passés si configuré */
-      const showFromNow   = this.config?.Timetable?.showOnlyFuture ?? false;
-      const filteredToday = showFromNow
-        ? todayEntries.filter(e => !e.endDate || new Date(e.endDate) >= today)
-        : todayEntries;
-
-      data.timetableToday = filteredToday.map(e => mapTimetableEntry(e, lang));
-      data.cancelledToday = data.timetableToday.filter(c => c.cancelled).length;
-
-      const sortedToday = [...todayEntries].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
-      data.todayStart = sortedToday.length ? formatTime(sortedToday[0].startDate, lang) : '';
-      data.todayEnd   = sortedToday.length ? formatTime(sortedToday[sortedToday.length - 1].endDate, lang) : '';
-
-      /* Prochain jour scolaire */
-      const weekCache = { [weekNum]: allEntries };
-      let nextEntries = [], nextDate = null;
-      for (let i = 1; i <= 14; i++) {
-        const d  = new Date(today); d.setDate(today.getDate() + i);
-        const wn = getPronoteWeek(d);
-        let wEntries;
-        if (weekCache[wn]) {
-          wEntries = weekCache[wn];
-        } else {
-          try {
-            const wt = await subject.administration.getTimetableFromWeek(wn);
-            try { wEntries = wt.filter ? wt.filter() : (wt.entries || []); }
-            catch { wEntries = wt.entries || []; }
-            weekCache[wn] = wEntries;
-          } catch { break; }
-        }
-        const dayEntries = wEntries.filter(e => e.startDate && new Date(e.startDate).toDateString() === d.toDateString() && !isCancelled(e));
-        if (dayEntries.length > 0) { nextEntries = dayEntries; nextDate = d; break; }
+    /* Helper : récupère une semaine de cours, via protocole brut (parent) ou API publique (élève) */
+    const fetchWeekEntries = async (wn) => {
+      if (memberPayload) {
+        const ttRaw = await rawPronoteRequest(pw, session, 'PageEmploiDuTemps', {
+          estEDTAnnuel: false, estEDTPermanence: false,
+          avecAbsencesEleve: false, avecRessourcesLibrePiedHoraire: false,
+          avecAbsencesRessource: true, avecInfosPrefsGrille: true,
+          avecConseilDeClasse: true, avecCoursSortiePeda: true,
+          avecDisponibilites: true, avecRetenuesEleve: true,
+          edt: { G: 16, L: 'Emploi du temps' },
+          ressource: { G: childResource.kind, L: childResource.name, N: childResource.id },
+          Ressource: { G: childResource.kind, L: childResource.name, N: childResource.id },
+          numeroSemaine: wn, NumeroSemaine: wn
+        }, { onglet: 16, membre: memberPayload });
+        return parseRawCourses(ttRaw, session);
+      } else {
+        const tt = await pw.timetableFromWeek(session, wn);
+        pw.parseTimetable(session, tt, { withCanceledClasses: true });
+        return tt.classes || [];
       }
+    };
 
-      const dayLabel   = nextDate
-        ? formatDate(nextDate, lang, { weekday: 'long', day: 'numeric', month: 'long' })
-        : '';
-      const sortedNext = [...nextEntries].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
-      data.timetableNextDay = {
-        day:     dayLabel,
-        start:   sortedNext.length ? formatTime(sortedNext[0].startDate, lang) : '',
-        end:     sortedNext.length ? formatTime(sortedNext[sortedNext.length - 1].endDate, lang) : '',
-        classes: nextEntries.map(e => mapTimetableEntry(e, lang))
-      };
-      Log.info(`EDT aujourd'hui: ${data.timetableToday.length} cours | prochain jour: ${data.timetableNextDay.classes.length} cours`);
-    } catch (e) {
-      Log.error('EDT:', e.message);
+    if (!hasTimetable && !memberPayload) {
+      Log.warn('EDT: onglet non disponible pour ce compte (restriction établissement)');
+    } else {
+      try {
+        const allEntries = await fetchWeekEntries(weekNum);
+
+        const todayStr     = today.toDateString();
+        const todayEntries = allEntries.filter(e => e.startDate && new Date(e.startDate).toDateString() === todayStr);
+
+        const showFromNow   = cfg?.Timetable?.showOnlyFuture ?? false;
+        const filteredToday = showFromNow
+          ? todayEntries.filter(e => !e.endDate || new Date(e.endDate) >= today)
+          : todayEntries;
+
+        data.timetableToday = [...filteredToday]
+          .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
+          .map(e => mapTimetableEntry(e, lang));
+        data.cancelledToday = data.timetableToday.filter(c => c.cancelled).length;
+
+        const sortedToday = [...todayEntries].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+        data.todayStart = sortedToday.length ? formatTime(sortedToday[0].startDate, lang) : '';
+        data.todayEnd   = sortedToday.length ? formatTime(sortedToday[sortedToday.length - 1].endDate, lang) : '';
+
+        /* Prochain jour scolaire (recherche jusqu'à 14 jours) */
+        const weekCache = { [weekNum]: allEntries };
+        let nextEntries = [], nextDate = null;
+        for (let i = 1; i <= 14; i++) {
+          const d  = new Date(today); d.setDate(today.getDate() + i);
+          const wn = (firstMonday && pw.translateToWeekNumber)
+            ? pw.translateToWeekNumber(d, firstMonday)
+            : getPronoteWeek(d);
+          let wEntries;
+          if (weekCache[wn]) {
+            wEntries = weekCache[wn];
+          } else {
+            try {
+              wEntries = await fetchWeekEntries(wn);
+              weekCache[wn] = wEntries;
+            } catch { break; }
+          }
+          const dayEntries = wEntries.filter(e =>
+            e.startDate &&
+            new Date(e.startDate).toDateString() === d.toDateString() &&
+            !isCancelled(e)
+          );
+          if (dayEntries.length > 0) { nextEntries = dayEntries; nextDate = d; break; }
+        }
+
+        const dayLabel   = nextDate
+          ? formatDate(nextDate, lang, { weekday: 'long', day: 'numeric', month: 'long' })
+          : '';
+        const sortedNext = [...nextEntries].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+        data.timetableNextDay = {
+          day:     dayLabel,
+          start:   sortedNext.length ? formatTime(sortedNext[0].startDate, lang) : '',
+          end:     sortedNext.length ? formatTime(sortedNext[sortedNext.length - 1].endDate, lang) : '',
+          classes: [...nextEntries]
+            .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
+            .map(e => mapTimetableEntry(e, lang))
+        };
+        Log.info(`EDT aujourd'hui: ${data.timetableToday.length} cours | prochain jour: ${data.timetableNextDay.classes.length} cours`);
+      } catch (e) {
+        Log.error('EDT:', e.message);
+      }
     }
 
     /* ---- Devoirs ---- */
     data.homeworks = [];
-    try {
-      const hwList     = await subject.homework.getAssignmentsFromWeek(weekNum);
-      const searchDays = this.config?.Homeworks?.searchDays ?? 14;
+    if (!hasAssignments && !memberPayload) {
+      Log.warn('Devoirs: onglet non disponible pour ce compte (restriction établissement)');
+    } else try {
+      const searchDays = cfg?.Homeworks?.searchDays ?? 14;
       const limitDate  = new Date(today.getTime() + searchDays * 24 * 3600 * 1000);
 
+      let hwList;
+      if (memberPayload) {
+        /* Parent : protocole brut avec sig.membre, plage de semaines */
+        const endWeekNum = (firstMonday && pw.translateToWeekNumber)
+          ? pw.translateToWeekNumber(limitDate, firstMonday)
+          : getPronoteWeek(limitDate);
+        const weekRange = weekNum === endWeekNum ? `[${weekNum}]` : `[${weekNum}..${endWeekNum}]`;
+        const hwRaw = await rawPronoteRequest(pw, session, 'PageCahierDeTexte', {
+          domaine: { _T: 8, V: weekRange }
+        }, { onglet: 88, membre: memberPayload });
+        hwList = parseRawAssignments(hwRaw);
+      } else {
+        hwList = await pw.assignmentsFromWeek(session, weekNum);
+      }
+
       data.homeworks = hwList
-        .filter(h => {
-          const d = h.deadline || h.dueDate;
-          if (!d) return false;
-          const dt = d instanceof Date ? d : new Date(d);
-          return dt >= today && dt <= limitDate;
-        })
-        .sort((a, b) => {
-          const da = a.deadline || a.dueDate; const db = b.deadline || b.dueDate;
-          return new Date(da) - new Date(db);
-        })
+        .filter(h => h.deadline && h.deadline >= today && h.deadline <= limitDate)
+        .sort((a, b) => a.deadline - b.deadline)
         .map(h => ({
           subject:     h.subject?.name || '',
-          description: h.description  || h.content || '',
-          done:        !!(h.done || h.isDone),
-          deadline:    formatDate(h.deadline || h.dueDate, lang, { weekday: 'short', day: 'numeric', month: 'short' })
+          description: h.description  || '',
+          done:        !!h.done,
+          deadline:    formatDate(h.deadline, lang, { weekday: 'short', day: 'numeric', month: 'short' })
         }));
       Log.info(`Devoirs: ${data.homeworks.length} (${data.homeworks.filter(h => !h.done).length} non faits)`);
     } catch (e) {
       Log.error('Devoirs:', e.message);
     }
 
-    /* ---- Notes (protocole brut DernieresNotes) ---- */
-    data.grades = [];
-    try {
-      const session = user.session;
-      const period  = getCurrentPeriod(user, today);
-      if (!period) throw new Error('Aucune période disponible');
-      const periodePayload = { N: period.id, G: period.kind, L: period.name };
-      const sig = { onglet: 198 };
-      if (isParent && subject) sig.membre = { G: subject.kind, N: subject.id };
-      const notesData       = await rawPronoteRequest(session, 'DernieresNotes', { Periode: periodePayload }, sig);
-      const displayDuration = (this.config?.Grades?.displayDuration ?? 30) * 24 * 3600 * 1000;
-      const cutoff          = new Date(today.getTime() - displayDuration);
+    /* ---- Période courante depuis l'onglet Notes (tab 198) ---- */
+    const gradesTab   = resource?.tabs?.get(pw.TabLocation.Grades ?? 198);
+    const gradePeriod = gradesTab?.defaultPeriod
+      || gradesTab?.periods?.find(p => p.startDate <= today && p.endDate >= today)
+      || gradesTab?.periods?.[gradesTab.periods.length - 1]
+      || null;
 
-      data.grades = (notesData.listeDevoirs?.V || [])
-        .filter(g => {
-          const dt = decodePronoteDate(g.date?.V);
-          return !dt || new Date(dt) >= cutoff;
-        })
-        .map(g => ({
-          subject:       g.service?.V?.L || '',
-          value:         decodeGradeValue(g.note?.V),
-          outOf:         decodeGradeValue(g.bareme?.V) ?? 20,
-          average:       g.moyenne ? decodeGradeValue(g.moyenne.V) : null,
-          date:          decodePronoteDate(g.date?.V),
-          formattedDate: decodePronoteDate(g.date?.V) ? formatDate(new Date(decodePronoteDate(g.date.V)), lang) : '',
-          comment:       g.commentaire || '',
-          coefficient:   g.coefficient || 1
-        }));
-      Log.info(`Notes: ${data.grades.length}`);
-    } catch (e) {
-      Log.warn('Notes:', e.message);
-    }
+    /* Période pour le carnet (tab 19) — fallback sur gradePeriod */
+    const notebookTab    = resource?.tabs?.get(pw.TabLocation.Notebook);
+    const notebookPeriod = notebookTab?.defaultPeriod
+      || notebookTab?.periods?.find(p => p.startDate <= today && p.endDate >= today)
+      || notebookTab?.periods?.[notebookTab?.periods?.length - 1]
+      || gradePeriod;
 
-    /* ---- Carnet (absences, retards, punitions) via PagePresence brut ---- */
+    /* ── Helper : construit le payload période Pronote ─────────────── */
+    const makePeriodePayload = (p) => ({ N: p.id, G: p.kind, L: p.name });
+
+    /* ---- Carnet (PagePresence — protocole brut, onglet 73) ---- */
     data.absences    = [];
     data.delays      = [];
     data.punishments = [];
-    try {
-      const session      = user.session;
-      const carnetPeriod = subject?.administration?.getCorrespondenceNotebookDefaultPeriod?.() || getCurrentPeriod(user, today);
-      if (!carnetPeriod) throw new Error('Aucune période carnet disponible');
-      const periodePayload = { N: carnetPeriod.id, G: carnetPeriod.kind, L: carnetPeriod.name };
-      const sig = { onglet: 73 };
-      if (isParent && subject) sig.membre = { G: subject.kind, N: subject.id };
+    const carnetPeriod = notebookPeriod || gradePeriod;
+    if (!carnetPeriod) {
+      Log.warn('Carnet: aucune période disponible');
+    } else {
+      try {
+        const sig = { onglet: 73 };
+        if (memberPayload) sig.membre = memberPayload;
+        const carnetData = await rawPronoteRequest(pw, session, 'PagePresence', {
+          periode:   makePeriodePayload(carnetPeriod),
+          DateDebut: { _T: 7, V: encodePronoteDate(new Date(carnetPeriod.startDate)) },
+          DateFin:   { _T: 7, V: encodePronoteDate(new Date(carnetPeriod.endDate)) }
+        }, sig);
 
-      const carnetData = await rawPronoteRequest(session, 'PagePresence', {
-        periode:   periodePayload,
-        DateDebut: { _T: 7, V: encodePronoteDate(new Date(carnetPeriod.startDate)) },
-        DateFin:   { _T: 7, V: encodePronoteDate(new Date(carnetPeriod.endDate)) }
-      }, sig);
+        const absenceDays    = (cfg?.Absences?.displayDuration    ?? 60) * 24 * 3600 * 1000;
+        const delayDays      = (cfg?.Delays?.displayDuration      ?? 60) * 24 * 3600 * 1000;
+        const punishmentDays = (cfg?.Punishments?.displayDuration ?? 60) * 24 * 3600 * 1000;
 
-      const absenceDays    = (this.config?.Absences?.displayDuration    ?? 60) * 24 * 3600 * 1000;
-      const delayDays      = (this.config?.Delays?.displayDuration      ?? 60) * 24 * 3600 * 1000;
-      const punishmentDays = (this.config?.Punishments?.displayDuration ?? 60) * 24 * 3600 * 1000;
-      const absenceCutoff    = new Date(today.getTime() - absenceDays);
-      const delayCutoff      = new Date(today.getTime() - delayDays);
-      const punishmentCutoff = new Date(today.getTime() - punishmentDays);
-
-      const maxAbsences    = this.config?.Absences?.number    ?? 5;
-      const maxDelays      = this.config?.Delays?.number      ?? 5;
-      const maxPunishments = this.config?.Punishments?.number ?? 5;
-
-      for (const item of carnetData.listeAbsences?.V || []) {
-        switch (item.G) {
-          case 13: { /* Absence */
-            const date = decodePronoteDate(item.dateDebut?.V);
-            if (date && new Date(date) >= absenceCutoff && data.absences.length < maxAbsences) {
+        for (const item of carnetData?.listeAbsences?.V || []) {
+          switch (item.G) {
+            case 13: { // Absence
+              const start = decodePronoteDate(item.dateDebut?.V);
+              if (!start || start < new Date(today.getTime() - absenceDays)) break;
+              if (data.absences.length >= (cfg?.Absences?.number ?? 5)) break;
               data.absences.push({
-                date:          date,
-                endDate:       decodePronoteDate(item.dateFin?.V),
-                formattedDate: formatDate(new Date(date), lang, { day: 'numeric', month: 'short', year: 'numeric' }),
+                date:          start.toISOString(),
+                endDate:       (decodePronoteDate(item.dateFin?.V) || start).toISOString(),
+                formattedDate: formatDate(start, lang, { day: 'numeric', month: 'short', year: 'numeric' }),
                 reason:        item.estMotifNonEncoreConnu ? 'Motif à venir' : (item.listeMotifs?.V?.[0]?.L || 'Non renseigné'),
                 justified:     !!(item.justifie),
                 hours:         item.NbrHeures || '',
                 days:          item.NbrJours  || 0
               });
+              break;
             }
-            break;
-          }
-          case 14: { /* Retard */
-            const date = decodePronoteDate(item.date?.V);
-            if (date && new Date(date) >= delayCutoff && data.delays.length < maxDelays) {
+            case 14: { // Retard
+              const d = decodePronoteDate(item.date?.V);
+              if (!d || d < new Date(today.getTime() - delayDays)) break;
+              if (data.delays.length >= (cfg?.Delays?.number ?? 5)) break;
               data.delays.push({
-                date:          date,
-                formattedDate: formatDate(new Date(date), lang, { day: 'numeric', month: 'short', year: 'numeric' }),
+                date:          d.toISOString(),
+                formattedDate: formatDate(d, lang, { day: 'numeric', month: 'short', year: 'numeric' }),
                 duration:      item.duree || 0,
                 justified:     !!(item.justifie),
                 reason:        item.estMotifNonEncoreConnu ? 'Motif à venir' : (item.listeMotifs?.V?.[0]?.L || '')
               });
+              break;
             }
-            break;
-          }
-          case 41: { /* Punition */
-            const date = decodePronoteDate(item.dateDemande?.V);
-            if (date && new Date(date) >= punishmentCutoff && data.punishments.length < maxPunishments) {
+            case 41: { // Punition
+              const d = decodePronoteDate(item.dateDemande?.V);
+              if (!d || d < new Date(today.getTime() - punishmentDays)) break;
+              if (data.punishments.length >= (cfg?.Punishments?.number ?? 5)) break;
               data.punishments.push({
-                date:          date,
-                formattedDate: formatDate(new Date(date), lang, { day: 'numeric', month: 'short', year: 'numeric' }),
+                date:          d.toISOString(),
+                formattedDate: formatDate(d, lang, { day: 'numeric', month: 'short', year: 'numeric' }),
                 type:          item.nature?.V?.L || 'Punition',
                 reason:        (item.listeMotifs?.V || []).map(m => m.L).filter(Boolean).join(', ')
               });
+              break;
             }
-            break;
           }
         }
+        Log.info(`Absences:${data.absences.length} | Retards:${data.delays.length} | Punitions:${data.punishments.length}`);
+      } catch (e) {
+        Log.warn('Carnet:', e.message);
       }
-      Log.info(`Absences:${data.absences.length} | Retards:${data.delays.length} | Punitions:${data.punishments.length}`);
-    } catch (e) {
-      Log.warn('Carnet:', e.message);
+    }
+
+    /* ---- Notes (DernieresNotes — protocole brut, onglet 198) ---- */
+    data.grades = [];
+    if (!gradePeriod) {
+      Log.warn('Notes: aucune période disponible');
+    } else {
+      try {
+        const sig = { onglet: 198 };
+        if (memberPayload) sig.membre = memberPayload;
+        const notesData = await rawPronoteRequest(pw, session, 'DernieresNotes',
+          { Periode: makePeriodePayload(gradePeriod) }, sig);
+
+        const displayDuration = (cfg?.Grades?.displayDuration ?? 30) * 24 * 3600 * 1000;
+        const cutoff          = new Date(today.getTime() - displayDuration);
+
+        data.grades = (notesData?.listeDevoirs?.V || [])
+          .map(g => {
+            const gDate = decodePronoteDate(g.date?.V);
+            return {
+              subject:       g.service?.V?.L || '',
+              value:         decodeGradeValue(g.note?.V),
+              outOf:         decodeGradeValue(g.bareme?.V) ?? 20,
+              average:       g.moyenne  ? decodeGradeValue(g.moyenne.V)  : null,
+              date:          gDate ? gDate.toISOString().split('T')[0] : '',
+              formattedDate: gDate ? formatDate(gDate, lang) : '',
+              comment:       g.commentaire || '',
+              coefficient:   g.coefficient || 1
+            };
+          })
+          .filter(g => g.date && new Date(g.date) >= cutoff)
+          .slice(0, cfg?.Grades?.number ?? 10);
+
+        Log.info(`Notes: ${data.grades.length}`);
+      } catch (e) {
+        Log.warn('Notes:', e.message);
+      }
     }
 
     return data;
@@ -734,23 +1097,31 @@ module.exports = NodeHelper.create({
   /* ── Réception des notifications socket ─────────────────────────── */
   socketNotificationReceived (notification, payload) {
     switch (notification) {
-      case 'SET_CONFIG':
-        this.config   = payload;
+      case 'SET_CONFIG': {
+        const instanceId = payload._instanceId;
+        if (!instanceId) break;
         _debugEnabled = !!payload.debug;
-        Log.info('Configuration reçue, démarrage du cycle de mise à jour');
-        this._startUpdateCycle();
+        Log.info(`Instance ${instanceId} — config reçue (childName: ${payload.childName || 'auto'})`);
+        this._startInstanceCycle(instanceId, payload);
         break;
+      }
     }
   },
 
-  /* ── Cycle de mise à jour ────────────────────────────────────────── */
-  _startUpdateCycle () {
-    clearInterval(this.updateTimer);
-    this.sendSocketNotification('INITIALIZED', {});
-    this._connectAndFetch();
-    const interval = this._parseInterval(this.config?.updateInterval || '15m');
-    this.updateTimer = setInterval(() => this._connectAndFetch(), interval);
-    Log.info(`Mise à jour toutes les ${this.config?.updateInterval || '15m'}`);
+  /* ── Cycle de mise à jour par instance ──────────────────────────── */
+  _startInstanceCycle (instanceId, config) {
+    /* Arrête l'ancien timer si l'instance existait déjà */
+    const existing = this.instances.get(instanceId);
+    if (existing?.timer) clearInterval(existing.timer);
+
+    const state = { config, timer: null, isConnecting: false, isConnected: false, lastError: null };
+    this.instances.set(instanceId, state);
+
+    this.sendSocketNotification('INITIALIZED', { _instanceId: instanceId });
+    this._connectAndFetch(instanceId);
+    const interval = this._parseInterval(config.updateInterval || '15m');
+    state.timer = setInterval(() => this._connectAndFetch(instanceId), interval);
+    Log.info(`Instance ${instanceId} — mise à jour toutes les ${config.updateInterval || '15m'}`);
   },
 
   _parseInterval (str) {

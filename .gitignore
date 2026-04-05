@@ -1,3 +1,4 @@
 node_modules/
 cache/tokens.json
 cache/device_uuid.txt
+GEMINI.md

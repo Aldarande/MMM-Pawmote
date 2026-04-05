@@ -1,71 +1,146 @@
-<div>
-    {% if config.Header.displayEstablishmentName and userData.establishment %}
-        <div id="PRONOTE_ICON">
-            {{ userData.establishment }}
-        </div>
+<div class="pm-wrap">
+
+    {# ── En-tête ──────────────────────────────────────────────────── #}
+    {% if config.Header.displayStudentName and userData.name %}
+    <div class="pm-header">
+        <span class="pm-name">{{ userData.name }}</span>
+        {% if config.Header.displayStudentClass and userData.className %}
+            <span class="pm-class">{{ userData.className }}</span>
+        {% endif %}
+        {% if config.Header.displayEstablishmentName and userData.establishment %}
+            <span class="pm-estab">{{ userData.establishment }}</span>
+        {% endif %}
+    </div>
     {% endif %}
 
-    {% if config.Header.displayStudentName and userData.name %}
-        <div id="PRONOTE_USER">
-            {{ userData.name }}
-            {% if config.Header.displayStudentClass and userData.className %}
-                ({{ userData.className }})
+    {# ── Calcul des colonnes visibles ────────────────────────────── #}
+    {% set showToday = userData.timetableToday | length > 0 %}
+
+    {# Compte les devoirs à faire (non faits) #}
+    {% set pendingHw = 0 %}
+    {% for hw in userData.homeworks %}
+        {% if not hw.done %}{% set pendingHw = pendingHw + 1 %}{% endif %}
+    {% endfor %}
+    {% set showHomeworks = pendingHw > 0 %}
+
+    {# Classe CSS selon le nombre de colonnes actives #}
+    {% if showToday and showHomeworks %}
+        {% set colClass = "pm-cols--3" %}
+    {% elif showToday or showHomeworks %}
+        {% set colClass = "pm-cols--2" %}
+    {% else %}
+        {% set colClass = "pm-cols--1" %}
+    {% endif %}
+
+    {# ── Colonnes ────────────────────────────────────────────────── #}
+    <div class="pm-cols {{ colClass }}">
+
+        {# ── Colonne 1 : Aujourd'hui (si des cours) ──────────────── #}
+        {% if showToday %}
+        <div class="pm-col">
+            <div class="pm-col-title">Aujourd'hui</div>
+            {% for entry in userData.timetableToday %}
+                {% if loop.index0 > 0 %}
+                    {% set prev = userData.timetableToday[loop.index0 - 1] %}
+                    {% if prev.end <= "14:00" and entry.start >= "11:45" and prev.end < entry.start %}
+                        <div class="pm-repas">Repas</div>
+                    {% endif %}
+                {% endif %}
+                <div class="pm-tl-entry{% if entry.cancelled %} pm-cancelled{% endif %}">
+                    <span class="pm-time">{{ entry.start }}</span>
+                    <span class="pm-subject">{{ entry.subject }}</span>
+                </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {# ── Colonne 2 : Prochain jour (toujours visible) ────────── #}
+        <div class="pm-col">
+            <div class="pm-col-title">{{ userData.timetableNextDay.day or "Demain" }}</div>
+            {% if userData.timetableNextDay.classes | length == 0 %}
+                <div class="pm-empty">Pas de cours</div>
+            {% else %}
+                {% for entry in userData.timetableNextDay.classes %}
+                    {% if loop.index0 > 0 %}
+                        {% set prev = userData.timetableNextDay.classes[loop.index0 - 1] %}
+                        {% if prev.end <= "14:00" and entry.start >= "11:45" and prev.end < entry.start %}
+                            <div class="pm-repas">Repas</div>
+                        {% endif %}
+                    {% endif %}
+                    <div class="pm-tl-entry{% if entry.cancelled %} pm-cancelled{% endif %}">
+                        <span class="pm-time">{{ entry.start }}</span>
+                        <span class="pm-subject">{{ entry.subject }}</span>
+                    </div>
+                {% endfor %}
             {% endif %}
         </div>
-    {% endif %}
 
-    {# ── Emploi du temps ─────────────────────────────────────────── #}
-    {% if vis.Timetable %}
-        <div id="PRONOTE_TIMETABLES">
-
-            {% if config.Timetable.displayToday %}
-                {% if userData.timetableToday | length > 0 %}
-                    <div id="PRONOTE_TIMETABLE_DAY">
-                        <div class="PRONOTE_TEXT_UNDERLINE">Prochains cours</div>
-                        {% set timetable = userData.timetableToday %}
-                        {% include 'templates/includes/timetable.njk' %}
-                    </div>
-                {% else %}
-                    <div id="PRONOTE_TIMETABLE_DAY">
-                        <div class="PRONOTE_TEXT_UNDERLINE">Plus de cours aujourd'hui !</div>
+        {# ── Colonne 3 : Devoirs (si des devoirs à faire) ────────── #}
+        {% if showHomeworks %}
+        <div class="pm-col">
+            <div class="pm-col-title">Devoirs</div>
+            {% set shownDeadline = null %}
+            {% for hw in userData.homeworks %}
+                {% if not hw.done %}
+                    {% if shownDeadline != hw.deadline %}
+                        <div class="pm-hw-deadline">{{ hw.deadline }}</div>
+                        {% set shownDeadline = hw.deadline %}
+                    {% endif %}
+                    <div class="pm-hw">
+                        <span class="pm-hw-subject">{{ hw.subject }}</span>
+                        {% if hw.description %}
+                            <span class="pm-hw-desc"> · {{ hw.description }}</span>
+                        {% endif %}
                     </div>
                 {% endif %}
-            {% endif %}
-
-            {% if config.Timetable.displayNextDay and userData.timetableNextDay.classes | length > 0 %}
-                <div id="PRONOTE_TIMETABLE_NEXT">
-                    <div class="PRONOTE_TEXT_UNDERLINE">{{ userData.timetableNextDay.day }}</div>
-                    {% set timetable = userData.timetableNextDay.classes %}
-                    {% include 'templates/includes/timetable.njk' %}
-                </div>
-            {% endif %}
-
+            {% endfor %}
         </div>
-    {% endif %}
+        {% endif %}
 
-    {# ── Devoirs ─────────────────────────────────────────────────── #}
-    {% if vis.Homeworks %}
-        {% include 'templates/includes/homeworks.njk' %}
-    {% endif %}
+    </div>
 
-    {# ── Notes ───────────────────────────────────────────────────── #}
-    {% if vis.Grades and userData.grades | length > 0 %}
-        {% include 'templates/includes/grades.njk' %}
-    {% endif %}
+    {# ── Cartouche ────────────────────────────────────────────────── #}
+    {% set hasCart = (userData.absences | length > 0) or (userData.delays | length > 0) or (userData.punishments | length > 0) %}
+    {% if hasCart %}
+    <div class="pm-cartouche">
 
-    {# ── Absences ────────────────────────────────────────────────── #}
-    {% if vis.Absences and userData.absences | length > 0 %}
-        {% include 'templates/includes/absences.njk' %}
-    {% endif %}
+        {% if userData.absences | length > 0 %}
+        <div class="pm-cart-section">
+            <div class="pm-cart-title">Absences</div>
+            {% for a in userData.absences %}
+            <div class="pm-cart-entry">
+                <span class="pm-cart-date">{{ a.formattedDate }}</span>
+                <span class="pm-cart-info">{{ a.reason }}{% if not a.justified %} · Non justifiée{% endif %}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
-    {# ── Retards ─────────────────────────────────────────────────── #}
-    {% if vis.Delays and userData.delays | length > 0 %}
-        {% include 'templates/includes/delays.njk' %}
-    {% endif %}
+        {% if userData.delays | length > 0 %}
+        <div class="pm-cart-section">
+            <div class="pm-cart-title">Retards</div>
+            {% for d in userData.delays %}
+            <div class="pm-cart-entry">
+                <span class="pm-cart-date">{{ d.formattedDate }}</span>
+                <span class="pm-cart-info">{{ d.duration }} min{% if d.reason %} · {{ d.reason }}{% endif %}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
 
-    {# ── Punitions ───────────────────────────────────────────────── #}
-    {% if vis.Punishments and userData.punishments | length > 0 %}
-        {% include 'templates/includes/punishments.njk' %}
+        {% if userData.punishments | length > 0 %}
+        <div class="pm-cart-section">
+            <div class="pm-cart-title">Punitions</div>
+            {% for p in userData.punishments %}
+            <div class="pm-cart-entry">
+                <span class="pm-cart-date">{{ p.formattedDate }}</span>
+                <span class="pm-cart-info">{{ p.type }}{% if p.reason %} · {{ p.reason }}{% endif %}</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+    </div>
     {% endif %}
 
 </div>
