@@ -421,12 +421,20 @@ module.exports = NodeHelper.create({
     /* API — connexion initiale QR Code */
     app.post('/MMM-pawmote/api/setup-qr', jsonBodyMiddleware, async (req, res) => {
       try {
-        const { qrToken, pin, childName } = req.body;
+        const { qrToken, pin, childName } = req.body || {};
+        Log.info(`Setup QR — body reçu : qrToken=${!!qrToken} pin=${!!pin} body_keys=${Object.keys(req.body||{}).join(',')}`);
         if (!qrToken || !pin) return res.status(400).json({ error: 'qrToken et pin requis' });
         if (!/^\d{4}$/.test(String(pin))) return res.status(400).json({ error: 'PIN invalide (4 chiffres requis)' });
 
-        Log.info('Setup QR Code…');
-        const result = await this._connectQR({ qrToken, pin: String(pin), childName });
+        Log.info('Setup QR Code — appel loginQrCode…');
+        const timeout = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Timeout : Pronote ne répond pas (30s)')), 30_000)
+        );
+        const result = await Promise.race([
+          this._connectQR({ qrToken, pin: String(pin), childName }),
+          timeout
+        ]);
+        Log.info(`Setup QR OK — ${result.username}`);
         res.json({ ok: true, username: result.username, isParent: result.isParent, children: result.children });
 
         /* Notifie toutes les instances et déclenche leur collecte */
