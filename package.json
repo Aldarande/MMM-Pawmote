@@ -10,6 +10,9 @@
     "bugsounet (original)"
   ],
   "license": "MIT",
+  "scripts": {
+    "postinstall": "node postinstall.js"
+  },
   "dependencies": {
     "pawnote": "^1.6.1"
   }
