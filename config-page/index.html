@@ -597,10 +597,17 @@ document.getElementById('btn-pin-confirm').addEventListener('click', async () =>
       clog.error('qrToken non parseable : ' + pe.message);
     }
 
-    const resp = await fetch('/MMM-pawmote/api/setup-qr', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ qrToken, pin, childName })
-    });
+    clog.info('Envoi fetch vers /MMM-pawmote/api/setup-qr…');
+    const _controller = new AbortController();
+    const _fetchTimer = setTimeout(() => _controller.abort(), 35_000);
+    let resp;
+    try {
+      resp = await fetch('/MMM-pawmote/api/setup-qr', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qrToken, pin, childName }),
+        signal: _controller.signal
+      });
+    } finally { clearTimeout(_fetchTimer); }
     clog.info('Réponse HTTP : ' + resp.status + ' ' + resp.statusText);
     const data = await resp.json();
     clog.info('Réponse JSON : ' + JSON.stringify(data));
