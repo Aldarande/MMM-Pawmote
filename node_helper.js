@@ -294,17 +294,22 @@ function _isAuthError (e) {
 
 /* ── Simple body-parser JSON (sans dépendance express) ──────────── */
 function jsonBodyMiddleware(req, res, next) {
-  if ((req.headers['content-type'] || '').includes('application/json')) {
-    let body = '';
-    req.on('data', chunk => { body += chunk.toString(); });
-    req.on('end',  ()    => {
-      try { req.body = JSON.parse(body); } catch { req.body = {}; }
-      next();
-    });
-  } else {
+  /* MagicMirror peut déjà avoir un express.json() qui a consommé le body.
+   * Dans ce cas req.body est déjà défini → on passe directement. */
+  if (req.body !== undefined) return next();
+
+  if (!(req.headers['content-type'] || '').includes('application/json')) {
     req.body = {};
-    next();
+    return next();
   }
+
+  let body = '';
+  req.on('data',  chunk => { body += chunk.toString(); });
+  req.on('end',   ()    => {
+    try { req.body = JSON.parse(body); } catch { req.body = {}; }
+    next();
+  });
+  req.on('error', ()    => { req.body = {}; next(); });
 }
 
 /* ── Formatters ─────────────────────────────────────────────────── */
