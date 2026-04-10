@@ -202,6 +202,20 @@
 <h1>⚙ MMM-pawmote</h1>
 <p class="subtitle">Configuration de la connexion à Pronote</p>
 
+<!-- Bannière relance MagicMirror -->
+<div id="restart-notice" style="display:none;width:100%;max-width:560px;margin-bottom:16px;background:#1a2e1a;border:2px solid var(--success);border-radius:12px;padding:18px 20px;color:var(--success)">
+  <div style="font-size:1.1rem;font-weight:700;margin-bottom:8px">✅ Configuration enregistrée !</div>
+  <div style="color:var(--text);font-size:.93rem;line-height:1.6">
+    Pour que les changements soient pris en compte, <strong style="color:var(--success)">relancez MagicMirror</strong>.<br>
+    <span style="color:var(--muted);font-size:.85rem">docker restart magicmirror</span>
+  </div>
+  <div style="margin-top:12px;padding-top:12px;border-top:1px solid #2a4a2a;font-size:.88rem;color:var(--muted)">
+    Pour reconfigurer le module, rendez-vous sur :<br>
+    <a id="restart-config-url" href="#" target="_blank"
+       style="color:var(--highlight);text-decoration:none;font-family:monospace;font-size:.9rem;word-break:break-all"></a>
+  </div>
+</div>
+
 <!-- Statut actuel -->
 <div class="card" id="status-card">
   <h2>📋 Statut actuel</h2>
@@ -597,6 +611,7 @@ document.getElementById('btn-pin-confirm').addEventListener('click', async () =>
     if (data.isParent) clog.info('Enfants : ' + (data.children || []).map(c => c.name).join(', '));
     showResult(document.getElementById('qr-result'), 'ok', `✅ Connexion réussie — ${data.username}`);
     loadStatus();
+    showRestartNotice();
   } catch (e) {
     document.getElementById('pin-error').textContent = '❌ ' + e.message;
     clog.error('Échec setup-qr : ' + e.message);
@@ -658,6 +673,7 @@ document.getElementById('btn-setup-creds').addEventListener('click', async () =>
     if (!resp.ok) throw new Error(data.error || resp.statusText);
     showResult(result, 'ok', `✅ Connexion réussie — ${data.username}`);
     loadStatus();
+    showRestartNotice();
   } catch (e) { showResult(result, 'error', '❌ Erreur : ' + e.message); }
   finally { btn.disabled = false; btn.innerHTML = '✅ Se connecter'; }
 });
@@ -835,6 +851,16 @@ function showResult(el, type, html) {
   el.style.display = 'block';
   el.className     = 'status-box ' + (type === 'ok' ? 'status-ok' : 'status-err');
   el.innerHTML     = html;
+}
+
+function showRestartNotice() {
+  const notice = document.getElementById('restart-notice');
+  const link   = document.getElementById('restart-config-url');
+  const url    = window.location.origin + '/MMM-pawmote/config';
+  link.href        = url;
+  link.textContent = url;
+  notice.style.display = 'block';
+  notice.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 </script>
 </body>
