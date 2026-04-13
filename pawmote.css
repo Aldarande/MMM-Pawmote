@@ -34,6 +34,14 @@
   /* ── Espacement ──────────────────────────────────────────────── */
   --pm-gap-col:       10px;
   --pm-gap-entry:     4px;
+
+  /* ── Colonnes ────────────────────────────────────────────────── */
+  --pm-col-max-width: 160px;
+
+  /* ── Couleurs état (error / warning / info) ──────────────────── */
+  --pm-color-error:   #e74c3c;
+  --pm-color-warning: #f0a500;
+  --pm-color-info:    #3498db;
 }
 
 /* ── Wrapper ─────────────────────────────────────────────────────── */
@@ -90,7 +98,7 @@
 .pm-col {
   padding: 0 var(--pm-gap-col);
   border-left: 1px solid var(--pm-color-line);
-  max-width: 160px;
+  max-width: var(--pm-col-max-width);
   word-break: break-word;
   overflow-wrap: break-word;
 }
@@ -224,7 +232,7 @@
 }
 
 /* ── Error / Loading ─────────────────────────────────────────────── */
-#PRONOTE_LOADING { text-align: center; font-size: 18px; }
+#PRONOTE_LOADING { text-align: center; font-size: 1.1rem; }
 
 #PRONOTE_LOGO {
   background-image: url(https://www.index-education.com/contenu/img/fr/pronote-horizontal.svg);
@@ -234,15 +242,15 @@
 }
 
 #PRONOTE_ERROR { padding-bottom: 8px; text-align: center; }
-.PRONOTE_ERROR_TITLE  { font-size: large;   font-weight: bold; color: #e74c3c; margin-bottom: 6px; }
-.PRONOTE_ERROR_DETAIL { font-size: small;   color: #f0a500;    margin-bottom: 4px; }
-.PRONOTE_ERROR_ACTION { font-size: x-small; color: #aaa;       font-style: italic; margin-bottom: 4px; }
+.PRONOTE_ERROR_TITLE  { font-size: large;   font-weight: bold; color: var(--pm-color-error);   margin-bottom: 6px; }
+.PRONOTE_ERROR_DETAIL { font-size: small;   color: var(--pm-color-warning);                    margin-bottom: 4px; }
+.PRONOTE_ERROR_ACTION { font-size: x-small; color: var(--pm-color-muted);   font-style: italic; margin-bottom: 4px; }
 
 .PRONOTE_ERROR_URL {
-  font-size: small; color: #3498db;
+  font-size: small; color: var(--pm-color-info);
   background: rgba(52,152,219,.1); border: 1px solid rgba(52,152,219,.4);
   border-radius: 4px; padding: 4px 10px; margin: 6px auto;
   display: inline-block; word-break: break-all;
 }
 
-#PRONOTE_CONFIG_LINK { margin-top: 8px; font-size: small; color: #aaa; }
+#PRONOTE_CONFIG_LINK { margin-top: 8px; font-size: small; color: var(--pm-color-muted); }

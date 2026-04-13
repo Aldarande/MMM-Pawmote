@@ -415,16 +415,16 @@ async function loadStatus() {
     /* Token présent — affiche l'état réel du module */
     if (sta.moduleError) {
       box.className = 'status-box status-err';
-      let html = `<strong>⚠️ Token expiré</strong> — ${sta.username || ''}`;
-      html += `<br><span style="font-size:.85rem;color:#f0a500">Le module MagicMirror ne peut pas se connecter : <em>${sta.moduleError}</em></span>`;
+      let html = `<strong>⚠️ Token expiré</strong> — ${escapeHTML(sta.username)}`;
+      html += `<br><span style="font-size:.85rem;color:#f0a500">Le module MagicMirror ne peut pas se connecter : <em>${escapeHTML(sta.moduleError)}</em></span>`;
       html += `<br><br>Veuillez vous ré-authentifier ci-dessous.`;
       box.innerHTML = html;
       btn.style.display = 'block';
     } else {
       box.className = sta.isConnected ? 'status-box status-ok' : 'status-box status-info';
       let html = sta.isConnected
-        ? `<strong>✅ Connecté</strong> — ${sta.username || ''}`
-        : `<strong>⏳ Token présent</strong> — ${sta.username || ''} (connexion en cours…)`;
+        ? `<strong>✅ Connecté</strong> — ${escapeHTML(sta.username)}`
+        : `<strong>⏳ Token présent</strong> — ${escapeHTML(sta.username)} (connexion en cours…)`;
       if (sta.isParent) html += ` <span class="badge badge-ok">👨‍👩‍👧 Compte Parent</span>`;
       html += `<br>Token principal : <span class="badge badge-ok">OK</span>`;
       html += ` Token backup : <span class="badge ${sta.hasBackup ? 'badge-ok' : 'badge-no'}">${sta.hasBackup ? 'OK' : 'absent'}</span>`;
@@ -444,18 +444,17 @@ function showChildrenAndConfig(children, appendTo) {
   html += `<strong>Enfants détectés :</strong>`;
   html += `<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:8px">`;
   for (const child of children) {
-    const firstName = child.name.split(' ').pop();
     html += `<div style="background:var(--accent);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:.85rem">`;
-    html += `<strong>${child.name}</strong>`;
-    if (child.className) html += `<br><span style="color:var(--muted);font-size:.78rem">${child.className}</span>`;
-    if (child.establishmentName) html += `<br><span style="color:var(--muted);font-size:.72rem">${child.establishmentName}</span>`;
+    html += `<strong>${escapeHTML(child.name)}</strong>`;
+    if (child.className)       html += `<br><span style="color:var(--muted);font-size:.78rem">${escapeHTML(child.className)}</span>`;
+    if (child.establishmentName) html += `<br><span style="color:var(--muted);font-size:.72rem">${escapeHTML(child.establishmentName)}</span>`;
     html += `</div>`;
   }
   html += `</div>`;
   html += `<details style="margin-top:12px"><summary style="cursor:pointer;font-size:.85rem;color:var(--highlight)">📋 Exemple de configuration config.js</summary>`;
   html += `<pre style="margin:8px 0 0;background:#0d0d1a;border:1px solid var(--border);border-radius:6px;padding:12px;font-size:.75rem;overflow-x:auto;color:#eee">`;
   for (const child of children) {
-    const firstName = child.name.split(' ').pop();
+    const firstName = escapeHTML(child.name.split(' ').pop());
     html += `{
   module: "MMM-pawmote",
   position: "top_left",
@@ -478,7 +477,13 @@ function showChildrenAndConfig(children, appendTo) {
 }
 /* ── Polling du statut ───────────────────────────────────────────── */
 let _statusPollTimer = null;
-let _lastStatusJson  = null;
+
+/* Sanitise une chaîne pour insertion dans innerHTML */
+function escapeHTML(str) {
+  const d = document.createElement('div');
+  d.textContent = str == null ? '' : String(str);
+  return d.innerHTML;
+}
 
 function _scheduleStatusPoll(delayMs) {
   clearTimeout(_statusPollTimer);
@@ -511,9 +516,16 @@ window.addEventListener('load', () => {
 function _log(level, msg) {
   const out = document.getElementById('log-output');
   if (!out) return;
-  const ts   = new Date().toLocaleTimeString('fr-FR', { hour12: false });
-  const line = document.createElement('div');
-  line.innerHTML = `<span class="log-ts">[${ts}]</span><span class="log-${level}">${msg}</span>`;
+  const ts     = new Date().toLocaleTimeString('fr-FR', { hour12: false });
+  const line   = document.createElement('div');
+  const tsSpan = document.createElement('span');
+  tsSpan.className   = 'log-ts';
+  tsSpan.textContent = `[${ts}]`;
+  const msgSpan = document.createElement('span');
+  msgSpan.className   = `log-${level}`;
+  msgSpan.textContent = msg;
+  line.appendChild(tsSpan);
+  line.appendChild(msgSpan);
   out.appendChild(line);
   out.scrollTop = out.scrollHeight;
   console[level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log'](`[MMM-pawmote config] ${msg}`);
@@ -644,7 +656,8 @@ document.getElementById('qr-json').addEventListener('input', function () {
     if (!parsed.jeton) { clog.warn('Champ "jeton" manquant'); throw new Error('Champ "jeton" manquant'); }
     if (!parsed.url)   { clog.warn('Champ "url" manquant');   throw new Error('Champ "url" manquant'); }
     window._scannedQR = raw;
-    clog.ok('JSON valide — url : ' + parsed.url + ' | jeton : ' + String(parsed.jeton).substring(0, 16) + '…');
+    const urlHost = (() => { try { return new URL(parsed.url).hostname; } catch { return '(url invalide)'; } })();
+    clog.ok('JSON valide — domaine : ' + urlHost + ' | jeton : [PRÉSENT]');
     statusEl.style.display = 'block';
     statusEl.className = 'status-box status-ok';
     statusEl.textContent = '✅ JSON valide — ' + parsed.url;

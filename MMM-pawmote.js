@@ -116,11 +116,21 @@ Module.register('MMM-pawmote', {
       Delays:      this._isVisible(this.config.Delays),
       Punishments: this._isVisible(this.config.Punishments)
     };
+
+    /* Logique colonnes — calculée ici pour garder les templates simples */
+    const showToday     = (this.userData.timetableToday || []).length > 0;
+    const showHomeworks = (this.userData.homeworks || []).filter(h => !h.done).length > 0;
+    const colCount      = [showToday, true, showHomeworks].filter(Boolean).length;
+    const colClass      = `pm-cols--${colCount}`;
+
     Log.info(`[${this.name}] vis=${JSON.stringify(vis)} grades=${this.userData.grades?.length} absences=${this.userData.absences?.length}`);
     return {
-      config:   this.config,
-      userData: this.userData,
-      vis
+      config:       this.config,
+      userData:     this.userData,
+      vis,
+      showToday,
+      showHomeworks,
+      colClass
     };
   },
 
@@ -193,6 +203,9 @@ Module.register('MMM-pawmote', {
         };
         this.updateDom();
         break;
+
+      default:
+        Log.warn(`[${this.name}] Notification socket non gérée : ${notification}`);
     }
   }
 });

@@ -3,36 +3,17 @@
     {# ── En-tête ──────────────────────────────────────────────────── #}
     {% if config.Header.displayStudentName and userData.name %}
     <div class="pm-header">
-        <span class="pm-name">{{ userData.name }}</span>
+        <span class="pm-name">{{ userData.name | escape }}</span>
         {% if config.Header.displayStudentClass and userData.className %}
-            <span class="pm-class">{{ userData.className }}</span>
+            <span class="pm-class">{{ userData.className | escape }}</span>
         {% endif %}
         {% if config.Header.displayEstablishmentName and userData.establishment %}
-            <span class="pm-estab">{{ userData.establishment }}</span>
+            <span class="pm-estab">{{ userData.establishment | escape }}</span>
         {% endif %}
     </div>
     {% endif %}
 
-    {# ── Calcul des colonnes visibles ────────────────────────────── #}
-    {% set showToday = userData.timetableToday | length > 0 %}
-
-    {# Compte les devoirs à faire (non faits) #}
-    {% set pendingHw = 0 %}
-    {% for hw in userData.homeworks %}
-        {% if not hw.done %}{% set pendingHw = pendingHw + 1 %}{% endif %}
-    {% endfor %}
-    {% set showHomeworks = pendingHw > 0 %}
-
-    {# Classe CSS selon le nombre de colonnes actives #}
-    {% if showToday and showHomeworks %}
-        {% set colClass = "pm-cols--3" %}
-    {% elif showToday or showHomeworks %}
-        {% set colClass = "pm-cols--2" %}
-    {% else %}
-        {% set colClass = "pm-cols--1" %}
-    {% endif %}
-
-    {# ── Colonnes ────────────────────────────────────────────────── #}
+    {# ── Colonnes (logique calculée dans getTemplateData()) ────────── #}
     <div class="pm-cols {{ colClass }}">
 
         {# ── Colonne 1 : Aujourd'hui (si des cours) ──────────────── #}
@@ -47,8 +28,8 @@
                     {% endif %}
                 {% endif %}
                 <div class="pm-tl-entry{% if entry.cancelled %} pm-cancelled{% endif %}">
-                    <span class="pm-time">{{ entry.start }}</span>
-                    <span class="pm-subject">{{ entry.subject }}</span>
+                    <span class="pm-time">{{ entry.start | escape }}</span>
+                    <span class="pm-subject">{{ entry.subject | escape }}</span>
                 </div>
             {% endfor %}
         </div>
@@ -56,7 +37,7 @@
 
         {# ── Colonne 2 : Prochain jour (toujours visible) ────────── #}
         <div class="pm-col">
-            <div class="pm-col-title">{{ userData.timetableNextDay.day or "Demain" }}</div>
+            <div class="pm-col-title">{{ userData.timetableNextDay.day | escape or "Demain" }}</div>
             {% if userData.timetableNextDay.classes | length == 0 %}
                 <div class="pm-empty">Pas de cours</div>
             {% else %}
@@ -68,8 +49,8 @@
                         {% endif %}
                     {% endif %}
                     <div class="pm-tl-entry{% if entry.cancelled %} pm-cancelled{% endif %}">
-                        <span class="pm-time">{{ entry.start }}</span>
-                        <span class="pm-subject">{{ entry.subject }}</span>
+                        <span class="pm-time">{{ entry.start | escape }}</span>
+                        <span class="pm-subject">{{ entry.subject | escape }}</span>
                     </div>
                 {% endfor %}
             {% endif %}
@@ -79,17 +60,17 @@
         {% if showHomeworks %}
         <div class="pm-col">
             <div class="pm-col-title">Devoirs</div>
-            {% set shownDeadline = null %}
+            {% set shownDeadline = None %}
             {% for hw in userData.homeworks %}
                 {% if not hw.done %}
                     {% if shownDeadline != hw.deadline %}
-                        <div class="pm-hw-deadline">{{ hw.deadline }}</div>
+                        <div class="pm-hw-deadline">{{ hw.deadline | escape }}</div>
                         {% set shownDeadline = hw.deadline %}
                     {% endif %}
                     <div class="pm-hw">
-                        <div class="pm-hw-subject">{{ hw.subject }}</div>
+                        <div class="pm-hw-subject">{{ hw.subject | escape }}</div>
                         {% if hw.description %}
-                            <div class="pm-hw-desc">{{ hw.description }}</div>
+                            <div class="pm-hw-desc">{{ hw.description | escape }}</div>
                         {% endif %}
                     </div>
                 {% endif %}
@@ -109,8 +90,8 @@
             <div class="pm-cart-title">Absences</div>
             {% for a in userData.absences %}
             <div class="pm-cart-entry">
-                <span class="pm-cart-date">{{ a.formattedDate }}</span>
-                <span class="pm-cart-info">{{ a.reason }}{% if not a.justified %} · Non justifiée{% endif %}</span>
+                <span class="pm-cart-date">{{ a.formattedDate | escape }}</span>
+                <span class="pm-cart-info">{{ a.reason | escape }}{% if not a.justified %} · Non justifiée{% endif %}</span>
             </div>
             {% endfor %}
         </div>
@@ -121,8 +102,8 @@
             <div class="pm-cart-title">Retards</div>
             {% for d in userData.delays %}
             <div class="pm-cart-entry">
-                <span class="pm-cart-date">{{ d.formattedDate }}</span>
-                <span class="pm-cart-info">{{ d.duration }} min{% if d.reason %} · {{ d.reason }}{% endif %}</span>
+                <span class="pm-cart-date">{{ d.formattedDate | escape }}</span>
+                <span class="pm-cart-info">{{ d.duration | escape }} min{% if d.reason %} · {{ d.reason | escape }}{% endif %}</span>
             </div>
             {% endfor %}
         </div>
@@ -133,8 +114,8 @@
             <div class="pm-cart-title">Punitions</div>
             {% for p in userData.punishments %}
             <div class="pm-cart-entry">
-                <span class="pm-cart-date">{{ p.formattedDate }}</span>
-                <span class="pm-cart-info">{{ p.type }}{% if p.reason %} · {{ p.reason }}{% endif %}</span>
+                <span class="pm-cart-date">{{ p.formattedDate | escape }}</span>
+                <span class="pm-cart-info">{{ p.type | escape }}{% if p.reason %} · {{ p.reason | escape }}{% endif %}</span>
             </div>
             {% endfor %}
         </div>
