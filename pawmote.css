@@ -16,24 +16,24 @@
    ===================================================================== */
 
 .MMM-pawmote {
-  /* ── Palette ──────────────────────────────────────────────────── */
-  --pm-color-text:    #ffffff;   /* texte principal               */
-  --pm-color-time:    #888888;   /* heures, dates secondaires     */
-  --pm-color-muted:   #555555;   /* labels, dates cartouche       */
-  --pm-color-faint:   #333333;   /* items annulés / faits         */
-  --pm-color-ghost:   #1e1e1e;   /* très discret (barrés faits)   */
-  --pm-color-line:    #1e1e1e;   /* séparateurs                   */
+  /* ── Palette (calée sur main.css de MagicMirror) ─────────────── */
+  --pm-color-text:    #ffffff;   /* .bright  — sujets, valeurs     */
+  --pm-color-time:    #999999;   /* --color-text MM — heures       */
+  --pm-color-muted:   #666666;   /* --color-text-dimmed MM — labels*/
+  --pm-color-faint:   #444444;   /* annulés / faits                */
+  --pm-color-ghost:   #2a2a2a;   /* très discret (barrés faits)    */
+  --pm-color-line:    #333333;   /* séparateurs                    */
 
-  /* ── Typographie ─────────────────────────────────────────────── */
-  --pm-font-base:     .75rem;
-  --pm-font-sm:       .68rem;
-  --pm-font-xs:       .62rem;
-  --pm-font-xxs:      .52rem;
-  --pm-font-label:    .50rem;
+  /* ── Typographie (calée sur les classes .small/.xsmall de MM) ── */
+  --pm-font-base:     1rem;      /* .small   MM = 20px — sujets    */
+  --pm-font-sm:       0.85rem;   /* intermédiaire — hw subject     */
+  --pm-font-xs:       0.75rem;   /* .xsmall  MM = 15px — heures    */
+  --pm-font-xxs:      0.65rem;   /* labels secondaires             */
+  --pm-font-label:    0.60rem;   /* titres de colonnes             */
 
   /* ── Espacement ──────────────────────────────────────────────── */
   --pm-gap-col:       10px;
-  --pm-gap-entry:     3px;
+  --pm-gap-entry:     4px;
 }
 
 /* ── Wrapper ─────────────────────────────────────────────────────── */
