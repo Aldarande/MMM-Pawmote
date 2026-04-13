@@ -87,9 +87,9 @@
                         {% set shownDeadline = hw.deadline %}
                     {% endif %}
                     <div class="pm-hw">
-                        <span class="pm-hw-subject">{{ hw.subject }}</span>
+                        <div class="pm-hw-subject">{{ hw.subject }}</div>
                         {% if hw.description %}
-                            <span class="pm-hw-desc"> · {{ hw.description }}</span>
+                            <div class="pm-hw-desc">{{ hw.description }}</div>
                         {% endif %}
                     </div>
                 {% endif %}

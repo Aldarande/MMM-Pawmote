@@ -970,7 +970,7 @@ module.exports = NodeHelper.create({
         .sort((a, b) => a.deadline - b.deadline)
         .map(h => ({
           subject:     h.subject?.name || '',
-          description: h.description  || '',
+          description: (h.description || '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\s+/g, ' ').trim(),
           done:        !!h.done,
           deadline:    formatDate(h.deadline, lang, { weekday: 'short', day: 'numeric', month: 'short' })
         }));
