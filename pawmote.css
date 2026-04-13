@@ -90,6 +90,9 @@
 .pm-col {
   padding: 0 var(--pm-gap-col);
   border-left: 1px solid var(--pm-color-line);
+  max-width: 160px;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .pm-col:first-child {
@@ -182,8 +185,10 @@
 }
 
 .pm-hw-desc {
+  display: block;
   font-size: var(--pm-font-xs);
   color: var(--pm-color-time);
+  padding-top: 1px;
 }
 
 /* ── Cartouche ───────────────────────────────────────────────────── */
