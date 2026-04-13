@@ -20,9 +20,9 @@
         <div class="PRONOTE_ERROR_TITLE">✖ Erreur de connexion</div>
         <div class="PRONOTE_ERROR_DETAIL">
             {% if error.message %}
-                {{ error.message | safe }}
+                {{ error.message | escape }}
             {% else %}
-                {{ error | safe }}
+                {{ error | string | escape }}
             {% endif %}
         </div>
         <div class="PRONOTE_ERROR_ACTION">Vérifiez que le serveur Pronote est accessible et que la configuration est correcte.</div>

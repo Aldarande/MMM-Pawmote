@@ -27,10 +27,11 @@ function _getCallerLoc(depth) {
   return '';
 }
 
-let _debugEnabled = false;
+/* Debug activé par instance (SET_CONFIG) — évite la contamination croisée */
+const _debugInstances = new Set();
 
 const Log = {
-  log:   (...a) => { if (_debugEnabled) console.log(`[${MODULE_NAME}]`, ...a); },
+  log:   (...a) => { if (_debugInstances.size > 0) console.log(`[${MODULE_NAME}]`, ...a); },
   info:  (...a) => console.log(`[${MODULE_NAME}]`, ...a),
   warn:  (...a) => { const loc = _getCallerLoc(3); console.warn(`[${MODULE_NAME}] ${loc}`, ...a); },
   error: (...a) => { const loc = _getCallerLoc(3); console.error(`[${MODULE_NAME}] ${loc}`, ...a); }
@@ -303,13 +304,28 @@ function jsonBodyMiddleware(req, res, next) {
     return next();
   }
 
+  const MAX_BODY = 2 * 1024 * 1024; // 2 MB — protection DoS
   let body = '';
-  req.on('data',  chunk => { body += chunk.toString(); });
+  req.on('data',  chunk => {
+    body += chunk.toString();
+    if (body.length > MAX_BODY) { req.destroy(); res.status(413).end('Payload too large'); }
+  });
   req.on('end',   ()    => {
     try { req.body = JSON.parse(body); } catch { req.body = {}; }
     next();
   });
   req.on('error', ()    => { req.body = {}; next(); });
+}
+
+/* ── Sanitize HTML entities (descriptions Pronote) ──────────────── */
+function sanitizeHTML(str) {
+  return (str || '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g,  '&')
+    .replace(/&lt;/g,   '<')
+    .replace(/&gt;/g,   '>')
+    .replace(/\s+/g,    ' ')
+    .trim();
 }
 
 /* ── Formatters ─────────────────────────────────────────────────── */
@@ -970,7 +986,7 @@ module.exports = NodeHelper.create({
         .sort((a, b) => a.deadline - b.deadline)
         .map(h => ({
           subject:     h.subject?.name || '',
-          description: (h.description || '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\s+/g, ' ').trim(),
+          description: sanitizeHTML(h.description),
           done:        !!h.done,
           deadline:    formatDate(h.deadline, lang, { weekday: 'short', day: 'numeric', month: 'short' })
         }));
@@ -979,19 +995,20 @@ module.exports = NodeHelper.create({
       Log.error('Devoirs:', e.message);
     }
 
+    /* ── Helper : résout la période active d'un onglet ─────────────── */
+    const getPeriodFromTab = (tab, fallback = null) =>
+      tab?.defaultPeriod
+      || tab?.periods?.find(p => p.startDate <= today && p.endDate >= today)
+      || tab?.periods?.[tab.periods.length - 1]
+      || fallback;
+
     /* ---- Période courante depuis l'onglet Notes (tab 198) ---- */
-    const gradesTab   = resource?.tabs?.get(pw.TabLocation.Grades ?? 198);
-    const gradePeriod = gradesTab?.defaultPeriod
-      || gradesTab?.periods?.find(p => p.startDate <= today && p.endDate >= today)
-      || gradesTab?.periods?.[gradesTab.periods.length - 1]
-      || null;
+    const gradesTab      = resource?.tabs?.get(pw.TabLocation.Grades ?? 198);
+    const gradePeriod    = getPeriodFromTab(gradesTab);
 
     /* Période pour le carnet (tab 19) — fallback sur gradePeriod */
     const notebookTab    = resource?.tabs?.get(pw.TabLocation.Notebook);
-    const notebookPeriod = notebookTab?.defaultPeriod
-      || notebookTab?.periods?.find(p => p.startDate <= today && p.endDate >= today)
-      || notebookTab?.periods?.[notebookTab?.periods?.length - 1]
-      || gradePeriod;
+    const notebookPeriod = getPeriodFromTab(notebookTab, gradePeriod);
 
     /* ── Helper : construit le payload période Pronote ─────────────── */
     const makePeriodePayload = (p) => ({ N: p.id, G: p.kind, L: p.name });
@@ -1018,11 +1035,17 @@ module.exports = NodeHelper.create({
         const punishmentDays = (cfg?.Punishments?.displayDuration ?? 60) * 24 * 3600 * 1000;
 
         for (const item of carnetData?.listeAbsences?.V || []) {
+          /* Sortie anticipée si toutes les limites sont atteintes */
+          const absLimit   = cfg?.Absences?.number    ?? 5;
+          const delayLimit = cfg?.Delays?.number      ?? 5;
+          const punishLimit = cfg?.Punishments?.number ?? 5;
+          if (data.absences.length >= absLimit && data.delays.length >= delayLimit && data.punishments.length >= punishLimit) break;
+
           switch (item.G) {
             case 13: { // Absence
               const start = decodePronoteDate(item.dateDebut?.V);
               if (!start || start < new Date(today.getTime() - absenceDays)) break;
-              if (data.absences.length >= (cfg?.Absences?.number ?? 5)) break;
+              if (data.absences.length >= absLimit) break;
               data.absences.push({
                 date:          start.toISOString(),
                 endDate:       (decodePronoteDate(item.dateFin?.V) || start).toISOString(),
@@ -1037,7 +1060,7 @@ module.exports = NodeHelper.create({
             case 14: { // Retard
               const d = decodePronoteDate(item.date?.V);
               if (!d || d < new Date(today.getTime() - delayDays)) break;
-              if (data.delays.length >= (cfg?.Delays?.number ?? 5)) break;
+              if (data.delays.length >= delayLimit) break;
               data.delays.push({
                 date:          d.toISOString(),
                 formattedDate: formatDate(d, lang, { day: 'numeric', month: 'short', year: 'numeric' }),
@@ -1050,7 +1073,7 @@ module.exports = NodeHelper.create({
             case 41: { // Punition
               const d = decodePronoteDate(item.dateDemande?.V);
               if (!d || d < new Date(today.getTime() - punishmentDays)) break;
-              if (data.punishments.length >= (cfg?.Punishments?.number ?? 5)) break;
+              if (data.punishments.length >= punishLimit) break;
               data.punishments.push({
                 date:          d.toISOString(),
                 formattedDate: formatDate(d, lang, { day: 'numeric', month: 'short', year: 'numeric' }),
@@ -1113,7 +1136,8 @@ module.exports = NodeHelper.create({
       case 'SET_CONFIG': {
         const instanceId = payload._instanceId;
         if (!instanceId) break;
-        _debugEnabled = !!payload.debug;
+        if (payload.debug) _debugInstances.add(instanceId);
+        else _debugInstances.delete(instanceId);
         Log.info(`Instance ${instanceId} — config reçue (childName: ${payload.childName || 'auto'})`);
         this._startInstanceCycle(instanceId, payload);
         break;
