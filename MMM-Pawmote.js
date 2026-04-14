@@ -1,10 +1,10 @@
 /* =====================================================================
-   MMM-pawmote — Module frontend MagicMirror²
+   MMM-Pawmote — Module frontend MagicMirror²
    Pawnote rewrite-2.0
    ===================================================================== */
 'use strict';
 
-Module.register('MMM-pawmote', {
+Module.register('MMM-Pawmote', {
 
   requiresVersion: '2.13.0',
 
@@ -101,7 +101,7 @@ Module.register('MMM-pawmote', {
       return { loading: 'Connexion à Pronote…' };
     }
     if (this.error || !this.userData) {
-      const configPath = (this.error && this.error.configUrl) || '/MMM-pawmote/config';
+      const configPath = (this.error && this.error.configUrl) || '/MMM-Pawmote/config';
       return {
         error:         this.error || { message: 'Aucune donnée', configUrl: configPath },
         configUrl:     configPath,
@@ -199,7 +199,7 @@ Module.register('MMM-pawmote', {
         this.error    = {
           type:      'no_tokens',
           message:   'Les tokens ont été supprimés. Reconfigurez le module.',
-          configUrl: '/MMM-pawmote/config'
+          configUrl: '/MMM-Pawmote/config'
         };
         this.updateDom();
         break;

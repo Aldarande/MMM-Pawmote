@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MMM-pawmote — Documentation</title>
+  <title>MMM-Pawmote — Documentation</title>
   <style>
     :root {
       --bg: #1a1a2e;
@@ -166,8 +166,8 @@
 <body>
 
 <div class="nav">
-  <h1>📖 MMM-pawmote — Documentation</h1>
-  <a href="/MMM-pawmote/config">← Configuration</a>
+  <h1>📖 MMM-Pawmote — Documentation</h1>
+  <a href="/MMM-Pawmote/config">← Configuration</a>
 </div>
 
 <div id="loading">Chargement de la documentation…</div>
@@ -192,7 +192,7 @@ async function loadDocs() {
   const loading = document.getElementById('loading');
   const body    = document.getElementById('md-body');
   try {
-    const res = await fetch('/MMM-pawmote/api/readme');
+    const res = await fetch('/MMM-Pawmote/api/readme');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const md = await res.text();
 

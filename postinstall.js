@@ -2,7 +2,7 @@
 'use strict';
 
 /* =====================================================================
-   MMM-pawmote — postinstall.js
+   MMM-Pawmote — postinstall.js
    Message affiché après "npm install" pour guider l'utilisateur
    ===================================================================== */
 
@@ -22,7 +22,7 @@ const blank = '';
 const steps = [
   blank,
   line,
-  `${c.bold}${c.green}  ✅  MMM-pawmote installé avec succès !${c.reset}`,
+  `${c.bold}${c.green}  ✅  MMM-Pawmote installé avec succès !${c.reset}`,
   line,
   blank,
   `${c.bold}${c.white}  Pour terminer la configuration, suivez ces étapes :${c.reset}`,
@@ -30,7 +30,7 @@ const steps = [
   `  ${c.cyan}${c.bold}Étape 1${c.reset} — Ajoutez le module dans votre ${c.yellow}config/config.js${c.reset} :`,
   blank,
   `  ${c.dim}    {`,
-  `  ${c.dim}      module: "MMM-pawmote",`,
+  `  ${c.dim}      module: "MMM-Pawmote",`,
   `  ${c.dim}      position: "bottom_left",`,
   `  ${c.dim}      config: {}`,
   `  ${c.dim}    }${c.reset}`,
@@ -41,7 +41,7 @@ const steps = [
   blank,
   `  ${c.cyan}${c.bold}Étape 3${c.reset} — Ouvrez la page de configuration dans votre navigateur :`,
   blank,
-  `  ${c.bold}${c.yellow}    http://<IP-de-votre-MagicMirror>:8080/MMM-pawmote/config${c.reset}`,
+  `  ${c.bold}${c.yellow}    http://<IP-de-votre-MagicMirror>:8080/MMM-Pawmote/config${c.reset}`,
   blank,
   line,
   blank,

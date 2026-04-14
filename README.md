@@ -1,4 +1,4 @@
-# MMM-pawmote
+# MMM-Pawmote
 
 > Module [MagicMirror²](https://magicmirror.builders/) pour afficher les données scolaires **Pronote** via la bibliothèque **[Pawnote rewrite-2.0](https://github.com/LiterateInk/Pawnote)**.
 
@@ -58,8 +58,8 @@
 
 ```bash
 cd ~/MagicMirror/modules
-git clone https://github.com/Aldarande/MMM-Pawmote MMM-pawmote
-cd MMM-pawmote
+git clone https://github.com/Aldarande/MMM-Pawmote MMM-Pawmote
+cd MMM-Pawmote
 ```
 
 ### 2. Installer les dépendances
@@ -76,7 +76,7 @@ Ouvrez `~/MagicMirror/config/config.js` et ajoutez ce bloc dans le tableau `modu
 
 ```javascript
 {
-  module: "MMM-pawmote",
+  module: "MMM-Pawmote",
   position: "top_left",
   config: {
     updateInterval: "15m"
@@ -103,7 +103,7 @@ MagicMirror² fonctionne sans clavier ni souris. La connexion à votre compte Pr
 ### Accéder à la page de configuration
 
 ```
-http://<adresse-ip-du-miroir>:8080/MMM-pawmote/config
+http://<adresse-ip-du-miroir>:8080/MMM-Pawmote/config
 ```
 
 Remplacez `<adresse-ip-du-miroir>` par l'adresse IP locale de votre Raspberry Pi (ex. `192.168.1.100`).
@@ -164,7 +164,7 @@ Si vous avez un compte **parent** avec **plusieurs enfants**, la page de configu
 
 ```javascript
 {
-  module: "MMM-pawmote",
+  module: "MMM-Pawmote",
   position: "top_left",   // top_left | top_center | top_right | ...
   config: {
 
@@ -286,7 +286,7 @@ Homeworks: {
 ```javascript
 // Instance Clara (top_left)
 {
-  module: "MMM-pawmote",
+  module: "MMM-Pawmote",
   position: "top_left",
   config: {
     childName:      "Clara",
@@ -307,7 +307,7 @@ Homeworks: {
 },
 // Instance Rafael (top_center)
 {
-  module: "MMM-pawmote",
+  module: "MMM-Pawmote",
   position: "top_center",
   config: {
     childName:      "Rafael",
@@ -332,7 +332,7 @@ Homeworks: {
 
 ```javascript
 {
-  module: "MMM-pawmote",
+  module: "MMM-Pawmote",
   position: "top_left",
   config: {
     childName: "Clara",
@@ -364,7 +364,7 @@ Homeworks: {
 
 ```javascript
 {
-  module: "MMM-pawmote",
+  module: "MMM-Pawmote",
   position: "top_left",
   config: {
     debug: true,
@@ -418,7 +418,7 @@ Les tokens sont stockés dans `cache/tokens.json` (exclu du git). Pour les suppr
 Accessible à l'adresse :
 
 ```
-http://<adresse-ip-du-miroir>:8080/MMM-pawmote/config
+http://<adresse-ip-du-miroir>:8080/MMM-Pawmote/config
 ```
 
 ### Fonctionnalités de la page de config
@@ -442,7 +442,7 @@ La documentation complète est accessible via le lien **📖 Documentation** en 
 ## Dépannage
 
 ### ❌ "Aucun token configuré"
-→ Rendez-vous sur `http://<ip>:8080/MMM-pawmote/config` et authentifiez-vous.
+→ Rendez-vous sur `http://<ip>:8080/MMM-Pawmote/config` et authentifiez-vous.
 
 ### ❌ "Connexion impossible (token expiré)"
 → Les deux tokens ont expiré. La page de configuration affiche le message ⚠️ Token expiré avec le détail de l'erreur. Reconfigurez le module.
@@ -465,8 +465,8 @@ La documentation complète est accessible via le lien **📖 Documentation** en 
 ## Structure des fichiers
 
 ```text
-MMM-pawmote/
-├── MMM-pawmote.js           # Module frontend (navigateur)
+MMM-Pawmote/
+├── MMM-Pawmote.js           # Module frontend (navigateur)
 ├── node_helper.js           # Backend Node.js (Pawnote + Pronote)
 ├── pawmote.css              # Feuille de style
 ├── package.json
@@ -495,7 +495,7 @@ MMM-pawmote/
 
 ## Crédits
 
-- **Aldarande** — Développement MMM-pawmote (Pawnote rewrite-2.0)
+- **Aldarande** — Développement MMM-Pawmote (Pawnote rewrite-2.0)
 - **Julien "delphiki" Villetorte** — Module MMM-Pronote original
 - **bugsounet** — Module MMM-Pronote original
 - **[LiterateInk/Pawnote](https://github.com/LiterateInk/Pawnote)** — Bibliothèque de communication Pronote

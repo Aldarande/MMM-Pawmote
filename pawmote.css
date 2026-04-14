@@ -1,10 +1,10 @@
 /* =====================================================================
-   MMM-pawmote — pawmote.css  (compact, transparent, themeable)
+   MMM-Pawmote — pawmote.css  (compact, transparent, themeable)
 
    Toutes les couleurs passent par des variables CSS.
    Pour surcharger depuis custom.css de MagicMirror :
 
-     .MMM-pawmote {
+     .MMM-Pawmote {
        --pm-color-text:       #fff;
        --pm-color-time:       #888;
        --pm-color-muted:      #555;
@@ -15,7 +15,7 @@
      }
    ===================================================================== */
 
-.MMM-pawmote {
+.MMM-Pawmote {
   /* ── Palette (calée sur main.css de MagicMirror) ─────────────── */
   --pm-color-text:    #ffffff;   /* .bright  — sujets, valeurs     */
   --pm-color-time:    #999999;   /* --color-text MM — heures       */

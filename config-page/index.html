@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>MMM-pawmote — Configuration</title>
+  <title>MMM-Pawmote — Configuration</title>
   <style>
     :root {
       --bg: #1a1a2e;
@@ -193,13 +193,13 @@
 <body>
 
 <div style="width:100%;max-width:560px;display:flex;justify-content:flex-end;margin-bottom:8px">
-  <a href="/MMM-pawmote/docs" target="_blank" style="color:var(--muted);text-decoration:none;font-size:.85rem;padding:5px 12px;border:1px solid var(--border);border-radius:6px;transition:all .2s"
+  <a href="/MMM-Pawmote/docs" target="_blank" style="color:var(--muted);text-decoration:none;font-size:.85rem;padding:5px 12px;border:1px solid var(--border);border-radius:6px;transition:all .2s"
      onmouseover="this.style.color='var(--text)';this.style.borderColor='var(--highlight)'"
      onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">
     📖 Documentation
   </a>
 </div>
-<h1>⚙ MMM-pawmote</h1>
+<h1>⚙ MMM-Pawmote</h1>
 <p class="subtitle">Configuration de la connexion à Pronote</p>
 
 <!-- Bannière relance MagicMirror -->
@@ -400,7 +400,7 @@ document.querySelectorAll('.tab-bar > .tab[data-sub]').forEach(tab => {
 /* ── Statut ──────────────────────────────────────────────────────── */
 async function loadStatus() {
   try {
-    const r   = await fetch('/MMM-pawmote/api/status');
+    const r   = await fetch('/MMM-Pawmote/api/status');
     const sta = await r.json();
     const box = document.getElementById('status-content');
     const btn = document.getElementById('btn-clear');
@@ -456,7 +456,7 @@ function showChildrenAndConfig(children, appendTo) {
   for (const child of children) {
     const firstName = escapeHTML(child.name.split(' ').pop());
     html += `{
-  module: "MMM-pawmote",
+  module: "MMM-Pawmote",
   position: "top_left",
   header: "${firstName}",
   config: {
@@ -500,7 +500,7 @@ loadStatus().then(() => _scheduleStatusPoll(10_000));
 
 document.getElementById('btn-clear').addEventListener('click', async () => {
   if (!confirm('Supprimer tous les tokens ? Le module devra être reconfiguré.')) return;
-  await fetch('/MMM-pawmote/api/clear', { method: 'POST' });
+  await fetch('/MMM-Pawmote/api/clear', { method: 'POST' });
   loadStatus();
 });
 
@@ -528,7 +528,7 @@ function _log(level, msg) {
   line.appendChild(msgSpan);
   out.appendChild(line);
   out.scrollTop = out.scrollHeight;
-  console[level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log'](`[MMM-pawmote config] ${msg}`);
+  console[level === 'error' ? 'error' : level === 'warn' ? 'warn' : 'log'](`[MMM-Pawmote config] ${msg}`);
 }
 const clog = {
   info:  msg => _log('info',  msg),
@@ -609,12 +609,12 @@ document.getElementById('btn-pin-confirm').addEventListener('click', async () =>
       clog.error('qrToken non parseable : ' + pe.message);
     }
 
-    clog.info('Envoi fetch vers /MMM-pawmote/api/setup-qr…');
+    clog.info('Envoi fetch vers /MMM-Pawmote/api/setup-qr…');
     const _controller = new AbortController();
     const _fetchTimer = setTimeout(() => _controller.abort(), 35_000);
     let resp;
     try {
-      resp = await fetch('/MMM-pawmote/api/setup-qr', {
+      resp = await fetch('/MMM-Pawmote/api/setup-qr', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ qrToken, pin, childName }),
         signal: _controller.signal
@@ -685,7 +685,7 @@ document.getElementById('btn-setup-creds').addEventListener('click', async () =>
   btn.innerHTML = '<span class="spinner"></span>Connexion…';
   result.style.display = 'none';
   try {
-    const resp = await fetch('/MMM-pawmote/api/setup-credentials', {
+    const resp = await fetch('/MMM-Pawmote/api/setup-credentials', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url, username, password, isParent })
     });
@@ -876,7 +876,7 @@ function showResult(el, type, html) {
 function showRestartNotice() {
   const notice = document.getElementById('restart-notice');
   const link   = document.getElementById('restart-config-url');
-  const url    = window.location.origin + '/MMM-pawmote/config';
+  const url    = window.location.origin + '/MMM-Pawmote/config';
   link.href        = url;
   link.textContent = url;
   notice.style.display = 'block';

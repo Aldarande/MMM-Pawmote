@@ -1,7 +1,7 @@
 'use strict';
 
 /* =====================================================================
-   MMM-pawmote — node_helper.js
+   MMM-Pawmote — node_helper.js
    Backend MagicMirror² — Pawnote functional API rewrite
    ===================================================================== */
 
@@ -9,7 +9,7 @@ const NodeHelper = require('node_helper');
 const path       = require('path');
 const fs         = require('fs');
 
-const MODULE_NAME  = 'MMM-pawmote';
+const MODULE_NAME  = 'MMM-Pawmote';
 const TOKEN_FILE   = path.join(__dirname, 'cache', 'tokens.json');
 const UUID_FILE    = path.join(__dirname, 'cache', 'device_uuid.txt');
 const PAWNOTE_DIR  = path.join(__dirname, 'node_modules', 'pawnote');
@@ -392,17 +392,17 @@ module.exports = NodeHelper.create({
     Log.info('Routes Express enregistrées');
 
     /* Page HTML de configuration */
-    app.get('/MMM-pawmote/config', (req, res) => {
+    app.get('/MMM-Pawmote/config', (req, res) => {
       res.sendFile(path.join(__dirname, 'config-page', 'index.html'));
     });
 
     /* Page de documentation */
-    app.get('/MMM-pawmote/docs', (req, res) => {
+    app.get('/MMM-Pawmote/docs', (req, res) => {
       res.sendFile(path.join(__dirname, 'config-page', 'docs.html'));
     });
 
     /* API — contenu brut du README (pour la page docs) */
-    app.get('/MMM-pawmote/api/readme', (req, res) => {
+    app.get('/MMM-Pawmote/api/readme', (req, res) => {
       const readmePath = path.join(__dirname, 'README.md');
       fs.readFile(readmePath, 'utf8', (err, data) => {
         if (err) return res.status(500).send('README introuvable');
@@ -411,7 +411,7 @@ module.exports = NodeHelper.create({
     });
 
     /* API — statut du token + état module */
-    app.get('/MMM-pawmote/api/status', (req, res) => {
+    app.get('/MMM-Pawmote/api/status', (req, res) => {
       const t = this._loadTokens();
       /* Collecte l'état de toutes les instances */
       let moduleError = null;
@@ -435,7 +435,7 @@ module.exports = NodeHelper.create({
     });
 
     /* API — connexion initiale QR Code */
-    app.post('/MMM-pawmote/api/setup-qr', jsonBodyMiddleware, async (req, res) => {
+    app.post('/MMM-Pawmote/api/setup-qr', jsonBodyMiddleware, async (req, res) => {
       try {
         const { qrToken, pin, childName } = req.body || {};
         Log.info(`Setup QR — body reçu : qrToken=${!!qrToken} pin=${!!pin} body_keys=${Object.keys(req.body||{}).join(',')}`);
@@ -465,7 +465,7 @@ module.exports = NodeHelper.create({
     });
 
     /* API — connexion par identifiants */
-    app.post('/MMM-pawmote/api/setup-credentials', jsonBodyMiddleware, async (req, res) => {
+    app.post('/MMM-Pawmote/api/setup-credentials', jsonBodyMiddleware, async (req, res) => {
       try {
         const { url, username, password, isParent, childName } = req.body;
         if (!url || !username || !password) return res.status(400).json({ error: 'url, username et password requis' });
@@ -485,7 +485,7 @@ module.exports = NodeHelper.create({
     });
 
     /* API — effacer les tokens */
-    app.post('/MMM-pawmote/api/clear', (req, res) => {
+    app.post('/MMM-Pawmote/api/clear', (req, res) => {
       try {
         if (fs.existsSync(TOKEN_FILE)) fs.unlinkSync(TOKEN_FILE);
         res.json({ ok: true });
@@ -502,7 +502,7 @@ module.exports = NodeHelper.create({
   _loadPawnote () {
     if (this.pawnote) return this.pawnote;
     if (!fs.existsSync(PAWNOTE_DIR)) {
-      throw new Error('Module pawnote absent — lancez npm install dans le dossier MMM-pawmote');
+      throw new Error('Module pawnote absent — lancez npm install dans le dossier MMM-Pawmote');
     }
     try {
       const pw = require(PAWNOTE_DIR);
@@ -755,7 +755,7 @@ module.exports = NodeHelper.create({
       if (!tokenData || !tokenData.primary?.token) {
         releaseLock();
         Log.warn(`Instance ${instanceId} — aucun token`);
-        notify('ERROR', { type: 'no_tokens', message: 'Aucun token configuré.', configUrl: '/MMM-pawmote/config' });
+        notify('ERROR', { type: 'no_tokens', message: 'Aucun token configuré.', configUrl: '/MMM-Pawmote/config' });
         return;
       }
 
@@ -783,7 +783,7 @@ module.exports = NodeHelper.create({
           releaseLock();
           state.isConnected = false;
           state.lastError   = e1.message;
-          notify('ERROR', { type: 'error', message: `Erreur réseau : ${e1.message}`, configUrl: '/MMM-pawmote/config' });
+          notify('ERROR', { type: 'error', message: `Erreur réseau : ${e1.message}`, configUrl: '/MMM-Pawmote/config' });
           return;
         }
 
@@ -791,7 +791,7 @@ module.exports = NodeHelper.create({
           releaseLock();
           state.isConnected = false;
           state.lastError   = `Token expiré : ${e1.message}`;
-          notify('ERROR', { type: 'auth_failed', message: 'Token expiré. Reconfigurez le module.', configUrl: '/MMM-pawmote/config' });
+          notify('ERROR', { type: 'auth_failed', message: 'Token expiré. Reconfigurez le module.', configUrl: '/MMM-Pawmote/config' });
           return;
         }
 
@@ -806,7 +806,7 @@ module.exports = NodeHelper.create({
           Log.error(`Instance ${instanceId} — backup expiré:`, e2.message);
           state.isConnected = false;
           state.lastError   = `Tokens expirés : ${e2.message}`;
-          notify('ERROR', { type: 'auth_failed', message: 'Tokens expirés. Reconfigurez le module.', configUrl: '/MMM-pawmote/config' });
+          notify('ERROR', { type: 'auth_failed', message: 'Tokens expirés. Reconfigurez le module.', configUrl: '/MMM-Pawmote/config' });
           return;
         }
       }
@@ -825,7 +825,7 @@ module.exports = NodeHelper.create({
       Log.error(`Instance ${instanceId} — erreur:`, e.message);
       state.isConnected = false;
       state.lastError   = e.message;
-      notify('ERROR', { type: 'error', message: `Erreur inattendue : ${e.message}`, configUrl: '/MMM-pawmote/config' });
+      notify('ERROR', { type: 'error', message: `Erreur inattendue : ${e.message}`, configUrl: '/MMM-Pawmote/config' });
     } finally {
       state.isConnecting = false;
     }
