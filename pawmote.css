@@ -135,8 +135,8 @@
 
 .pm-col-hours {
   font-size: var(--pm-font-xs);
-  color: var(--pm-color-time);
-  font-weight: 400;
+  color: var(--pm-color-text);
+  font-weight: 700;
   letter-spacing: .02em;
   text-transform: none;
   font-variant-numeric: tabular-nums;

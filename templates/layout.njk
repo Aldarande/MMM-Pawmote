@@ -19,7 +19,7 @@
         {# ── Colonne 1 : Aujourd'hui (si des cours) ──────────────── #}
         {% if showToday %}
         <div class="pm-col">
-            <div class="pm-col-title">Aujourd'hui<br><span class="pm-col-date">{{ todayLabel }}</span>{% if userData.todayStart %}<br><span class="pm-col-hours">{{ userData.todayStart | escape }}–{{ userData.todayEnd | escape }}</span>{% endif %}</div>
+            <div class="pm-col-title">Aujourd'hui{% if userData.todayStart %}<br><span class="pm-col-hours">{{ userData.todayStart | escape }}–{{ userData.todayEnd | escape }}</span>{% endif %}</div>
             {% for entry in userData.timetableToday %}
                 {% if loop.index0 > 0 %}
                     {% set prev = userData.timetableToday[loop.index0 - 1] %}
