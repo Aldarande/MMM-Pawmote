@@ -124,13 +124,16 @@ Module.register('MMM-Pawmote', {
     const colClass      = `pm-cols--${colCount}`;
 
     Log.info(`[${this.name}] vis=${JSON.stringify(vis)} grades=${this.userData.grades?.length} absences=${this.userData.absences?.length}`);
+    const today = new Date();
+    const todayLabel = today.toLocaleDateString(this.config.language || 'fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     return {
       config:       this.config,
       userData:     this.userData,
       vis,
       showToday,
       showHomeworks,
-      colClass
+      colClass,
+      todayLabel
     };
   },
 

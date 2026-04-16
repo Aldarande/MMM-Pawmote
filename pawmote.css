@@ -18,11 +18,11 @@
 .MMM-Pawmote {
   /* ── Palette (calée sur main.css de MagicMirror) ─────────────── */
   --pm-color-text:    #ffffff;   /* .bright  — sujets, valeurs     */
-  --pm-color-time:    #999999;   /* --color-text MM — heures       */
-  --pm-color-muted:   #666666;   /* --color-text-dimmed MM — labels*/
-  --pm-color-faint:   #444444;   /* annulés / faits                */
-  --pm-color-ghost:   #2a2a2a;   /* très discret (barrés faits)    */
-  --pm-color-line:    #333333;   /* séparateurs                    */
+  --pm-color-time:    #cccccc;   /* --color-text MM — heures       */
+  --pm-color-muted:   #aaaaaa;   /* --color-text-dimmed MM — labels*/
+  --pm-color-faint:   #777777;   /* annulés / faits                */
+  --pm-color-ghost:   #555555;   /* très discret (barrés faits)    */
+  --pm-color-line:    #444444;   /* séparateurs                    */
 
   /* ── Typographie (calée sur les classes .small/.xsmall de MM) ── */
   --pm-font-base:     1rem;      /* .small   MM = 20px — sujets    */
@@ -36,7 +36,7 @@
   --pm-gap-entry:     4px;
 
   /* ── Colonnes ────────────────────────────────────────────────── */
-  --pm-col-max-width: 160px;
+  --pm-col-max-width: none;
 
   /* ── Couleurs état (error / warning / info) ──────────────────── */
   --pm-color-error:   #e74c3c;
@@ -99,8 +99,6 @@
   padding: 0 var(--pm-gap-col);
   border-left: 1px solid var(--pm-color-line);
   max-width: var(--pm-col-max-width);
-  word-break: break-word;
-  overflow-wrap: break-word;
 }
 
 .pm-col:first-child {
@@ -124,6 +122,14 @@
   font-style: italic;
 }
 
+.pm-col-date {
+  font-size: var(--pm-font-xxs);
+  color: var(--pm-color-muted);
+  font-weight: 400;
+  letter-spacing: .04em;
+  text-transform: none;
+}
+
 /* ── Timeline ────────────────────────────────────────────────────── */
 .pm-tl-entry {
   display: flex;
@@ -136,7 +142,7 @@
 .pm-time {
   font-size: var(--pm-font-xs);
   color: var(--pm-color-time);
-  min-width: 30px;
+  min-width: 70px;
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
 }
@@ -145,6 +151,7 @@
   font-size: var(--pm-font-base);
   font-weight: 600;
   color: var(--pm-color-text);
+  white-space: nowrap;
 }
 
 .pm-cancelled .pm-subject {
