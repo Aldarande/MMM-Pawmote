@@ -36,7 +36,7 @@
   --pm-gap-entry:     4px;
 
   /* ── Colonnes ────────────────────────────────────────────────── */
-  --pm-col-max-width: none;
+  --pm-col-max-width: 150px;
 
   /* ── Couleurs état (error / warning / info) ──────────────────── */
   --pm-color-error:   #e74c3c;
@@ -152,6 +152,8 @@
   font-weight: 600;
   color: var(--pm-color-text);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pm-cancelled .pm-subject {
