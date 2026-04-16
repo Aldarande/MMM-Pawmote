@@ -129,6 +129,15 @@
   text-transform: none;
 }
 
+.pm-col-hours {
+  font-size: var(--pm-font-xs);
+  color: var(--pm-color-time);
+  font-weight: 400;
+  letter-spacing: .02em;
+  text-transform: none;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Timeline ────────────────────────────────────────────────────── */
 .pm-tl-entry {
   display: flex;

@@ -19,7 +19,7 @@
         {# ── Colonne 1 : Aujourd'hui (si des cours) ──────────────── #}
         {% if showToday %}
         <div class="pm-col">
-            <div class="pm-col-title">Aujourd'hui<br><span class="pm-col-date">{{ todayLabel }}</span></div>
+            <div class="pm-col-title">Aujourd'hui<br><span class="pm-col-date">{{ todayLabel }}</span>{% if userData.todayStart %}<br><span class="pm-col-hours">{{ userData.todayStart | escape }}–{{ userData.todayEnd | escape }}</span>{% endif %}</div>
             {% for entry in userData.timetableToday %}
                 {% if loop.index0 > 0 %}
                     {% set prev = userData.timetableToday[loop.index0 - 1] %}
@@ -28,7 +28,7 @@
                     {% endif %}
                 {% endif %}
                 <div class="pm-tl-entry{% if entry.cancelled %} pm-cancelled{% endif %}">
-                    <span class="pm-time">{{ entry.start | escape }}–{{ entry.end | escape }}</span>
+                    <span class="pm-time">{{ entry.start | escape }}</span>
                     <span class="pm-subject">{{ entry.subject | escape }}</span>
                 </div>
             {% endfor %}
@@ -37,7 +37,7 @@
 
         {# ── Colonne 2 : Prochain jour (toujours visible) ────────── #}
         <div class="pm-col">
-            <div class="pm-col-title">{{ userData.timetableNextDay.day | escape or "Demain" }}</div>
+            <div class="pm-col-title">{{ userData.timetableNextDay.day | escape or "Demain" }}{% if userData.timetableNextDay.start %}<br><span class="pm-col-hours">{{ userData.timetableNextDay.start | escape }}–{{ userData.timetableNextDay.end | escape }}</span>{% endif %}</div>
             {% if userData.timetableNextDay.classes | length == 0 %}
                 <div class="pm-empty">Pas de cours</div>
             {% else %}
@@ -49,7 +49,7 @@
                         {% endif %}
                     {% endif %}
                     <div class="pm-tl-entry{% if entry.cancelled %} pm-cancelled{% endif %}">
-                        <span class="pm-time">{{ entry.start | escape }}–{{ entry.end | escape }}</span>
+                        <span class="pm-time">{{ entry.start | escape }}</span>
                         <span class="pm-subject">{{ entry.subject | escape }}</span>
                     </div>
                 {% endfor %}
