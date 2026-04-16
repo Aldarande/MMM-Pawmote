@@ -31,6 +31,9 @@
   --pm-font-xxs:      0.65rem;   /* labels secondaires             */
   --pm-font-label:    0.60rem;   /* titres de colonnes             */
 
+  /* ── Largeur max (surcharger dans custom.css si besoin) ─────── */
+  --pm-max-width:     33vw;
+
   /* ── Espacement ──────────────────────────────────────────────── */
   --pm-gap-col:       0.6em;
   --pm-gap-entry:     0.25em;
@@ -48,6 +51,7 @@
   background: transparent;
   padding: 0.3em 0.5em 0.5em;
   width: 100%;
+  max-width: var(--pm-max-width);
   box-sizing: border-box;
 }
 
