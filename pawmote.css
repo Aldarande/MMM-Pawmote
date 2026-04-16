@@ -32,11 +32,8 @@
   --pm-font-label:    0.60rem;   /* titres de colonnes             */
 
   /* ── Espacement ──────────────────────────────────────────────── */
-  --pm-gap-col:       10px;
-  --pm-gap-entry:     4px;
-
-  /* ── Colonnes ────────────────────────────────────────────────── */
-  --pm-col-max-width: 150px;
+  --pm-gap-col:       0.6em;
+  --pm-gap-entry:     0.25em;
 
   /* ── Couleurs état (error / warning / info) ──────────────────── */
   --pm-color-error:   #e74c3c;
@@ -49,8 +46,9 @@
   font-family: 'Segoe UI', 'Helvetica Neue', system-ui, sans-serif;
   color: var(--pm-color-text);
   background: transparent;
-  padding: 6px 10px 10px;
-  width: fit-content;
+  padding: 0.3em 0.5em 0.5em;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* ── En-tête ─────────────────────────────────────────────────────── */
@@ -91,14 +89,15 @@
   gap: 0;
 }
 
-.pm-cols--3 { grid-template-columns: max-content max-content max-content; }
-.pm-cols--2 { grid-template-columns: max-content max-content; }
-.pm-cols--1 { grid-template-columns: max-content; }
+.pm-cols--3 { grid-template-columns: 1fr 1fr 1fr; }
+.pm-cols--2 { grid-template-columns: 1fr 1fr; }
+.pm-cols--1 { grid-template-columns: 1fr; }
 
 .pm-col {
   padding: 0 var(--pm-gap-col);
   border-left: 1px solid var(--pm-color-line);
-  max-width: var(--pm-col-max-width);
+  min-width: 0;
+  overflow: hidden;
 }
 
 .pm-col:first-child {
@@ -142,9 +141,10 @@
 .pm-time {
   font-size: var(--pm-font-xs);
   color: var(--pm-color-time);
-  min-width: 70px;
+  min-width: 4.8em;
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .pm-subject {
