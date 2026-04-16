@@ -25,11 +25,11 @@
   --pm-color-line:    #444444;   /* séparateurs                    */
 
   /* ── Typographie (calée sur les classes .small/.xsmall de MM) ── */
-  --pm-font-base:     1rem;      /* .small   MM = 20px — sujets    */
-  --pm-font-sm:       0.85rem;   /* intermédiaire — hw subject     */
-  --pm-font-xs:       0.75rem;   /* .xsmall  MM = 15px — heures    */
-  --pm-font-xxs:      0.65rem;   /* labels secondaires             */
-  --pm-font-label:    0.60rem;   /* titres de colonnes             */
+  --pm-font-base:     0.85rem;   /* sujets                         */
+  --pm-font-sm:       0.75rem;   /* intermédiaire — hw subject     */
+  --pm-font-xs:       0.65rem;   /* heures                         */
+  --pm-font-xxs:      0.55rem;   /* labels secondaires             */
+  --pm-font-label:    0.50rem;   /* titres de colonnes             */
 
   /* ── Largeur max (surcharger dans custom.css si besoin) ─────── */
   --pm-max-width:     33vw;
@@ -154,7 +154,7 @@
 .pm-time {
   font-size: var(--pm-font-xs);
   color: var(--pm-color-time);
-  min-width: 4.8em;
+  min-width: 2.8em;
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
