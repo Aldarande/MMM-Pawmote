@@ -18,7 +18,7 @@
 
         {# ── Colonne 1 : Aujourd'hui (si des cours) ──────────────── #}
         {% if showToday %}
-        <div class="pm-col">
+        <div class="pm-col pm-col--today">
             <div class="pm-col-title">Aujourd'hui{% if userData.todayStart %}<br><span class="pm-col-hours">{{ userData.todayStart | escape }}–{{ userData.todayEnd | escape }}</span>{% endif %}</div>
             {% for entry in userData.timetableToday %}
                 {% if loop.index0 > 0 %}
@@ -64,7 +64,7 @@
             {% for hw in userData.homeworks %}
                 {% if not hw.done %}
                     {% if shownDeadline != hw.deadline %}
-                        <div class="pm-hw-deadline">{{ hw.deadline | escape }}</div>
+                        <div class="pm-hw-deadline{% if hw.dueTomorrow %} pm-hw-deadline--tomorrow{% endif %}">{{ hw.deadline | escape }}</div>
                         {% set shownDeadline = hw.deadline %}
                     {% endif %}
                     <div class="pm-hw">

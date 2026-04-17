@@ -109,6 +109,19 @@
   border-left: none;
 }
 
+/* Colonne Aujourd'hui — accent visuel */
+.pm-col--today {
+  border-left: 2px solid var(--pm-color-warning);
+  padding-left: calc(var(--pm-gap-col) - 2px);
+}
+.pm-col--today:first-child {
+  border-left: 2px solid var(--pm-color-warning);
+  padding-left: calc(var(--pm-gap-col) - 2px);
+}
+.pm-col--today .pm-col-title {
+  color: var(--pm-color-warning);
+}
+
 .pm-col-title {
   font-size: var(--pm-font-label);
   letter-spacing: .18em;
@@ -202,6 +215,13 @@
 }
 
 .pm-hw-deadline:first-child { margin-top: 0; }
+
+/* Devoirs pour demain — mise en évidence */
+.pm-hw-deadline--tomorrow {
+  color: var(--pm-color-warning);
+  border-bottom-color: var(--pm-color-warning);
+  font-weight: 700;
+}
 
 .pm-hw {
   margin-bottom: var(--pm-gap-entry);
