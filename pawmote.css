@@ -1,298 +1,427 @@
 /* =====================================================================
-   MMM-Pawmote — pawmote.css  (compact, transparent, themeable)
+   MMM-Pawmote — pawmote.css  v2  (vertical, haut contraste, verre)
 
-   Toutes les couleurs passent par des variables CSS.
-   Pour surcharger depuis custom.css de MagicMirror :
-
-     .MMM-Pawmote {
-       --pm-color-text:       #fff;
-       --pm-color-time:       #888;
-       --pm-color-muted:      #555;
-       --pm-color-faint:      #333;
-       --pm-color-ghost:      #222;
-       --pm-color-line:       #1e1e1e;
-       --pm-font-base:        .75rem;
-     }
+   Personnalisation depuis custom.css :
+     .MMM-Pawmote { --pm-today: #00BFFF; }
    ===================================================================== */
 
 .MMM-Pawmote {
-  /* ── Palette (calée sur main.css de MagicMirror) ─────────────── */
-  --pm-color-text:    #ffffff;   /* .bright  — sujets, valeurs     */
-  --pm-color-time:    #cccccc;   /* --color-text MM — heures       */
-  --pm-color-muted:   #aaaaaa;   /* --color-text-dimmed MM — labels*/
-  --pm-color-faint:   #777777;   /* annulés / faits                */
-  --pm-color-ghost:   #555555;   /* très discret (barrés faits)    */
-  --pm-color-line:    #444444;   /* séparateurs                    */
 
-  /* ── Typographie (calée sur les classes .small/.xsmall de MM) ── */
-  --pm-font-base:     0.85rem;   /* sujets                         */
-  --pm-font-sm:       0.75rem;   /* intermédiaire — hw subject     */
-  --pm-font-xs:       0.65rem;   /* heures                         */
-  --pm-font-xxs:      0.55rem;   /* labels secondaires             */
-  --pm-font-label:    0.50rem;   /* titres de colonnes             */
+  /* ── Palette haute lisibilité (fond noir + vitre sans teint) ─────
+     Règle : aucun texte lisible en dessous de #CCCCCC                */
+  --pm-white:      #FFFFFF;   /* sujets, valeurs importantes          */
+  --pm-bright:     #F0F0F0;   /* heures, dates, noms                  */
+  --pm-mid:        #CCCCCC;   /* descriptions, salles, profs          */
+  --pm-muted:      #999999;   /* labels de section, établissement     */
+  --pm-faint:      #777777;   /* cours annulés, devoirs cochés        */
+  --pm-line:       #3A3A3A;   /* séparateurs                          */
 
-  /* ── Largeur max (surcharger dans custom.css si besoin) ─────── */
-  --pm-max-width:     33vw;
+  /* ── Accents ──────────────────────────────────────────────────── */
+  --pm-today:      #F0A500;   /* accent "Aujourd'hui"                 */
+  --pm-urgent:     #FF6B35;   /* devoir pour demain                   */
+  --pm-cancelled:  #777777;   /* cours annulé (badge + texte barré)   */
+  --pm-error:      #E74C3C;
+  --pm-warn:       #F0A500;
+  --pm-info:       #3498DB;
+
+  /* ── Typographie ─────────────────────────────────────────────── */
+  --pm-font-xl:    0.92rem;   /* sujet du cours (le plus important)   */
+  --pm-font-base:  0.80rem;   /* heures, échéances devoirs            */
+  --pm-font-sm:    0.70rem;   /* salle, prof, description devoir      */
+  --pm-font-xs:    0.60rem;   /* labels de section (UPPERCASE tiny)   */
+  --pm-font-xxs:   0.52rem;   /* établissement, badges                */
 
   /* ── Espacement ──────────────────────────────────────────────── */
-  --pm-gap-col:       0.6em;
-  --pm-gap-entry:     0.25em;
+  --pm-entry-gap:   0.28em;
+  --pm-section-gap: 0.55em;
+}
 
-  /* ── Couleurs état (error / warning / info) ──────────────────── */
-  --pm-color-error:   #e74c3c;
-  --pm-color-warning: #f0a500;
-  --pm-color-info:    #3498db;
+/* ── Ombre pour lisibilité à travers le verre ───────────────────── */
+.pm-wrap,
+.pm-wrap * {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.90);
 }
 
 /* ── Wrapper ─────────────────────────────────────────────────────── */
 .pm-wrap {
   font-family: 'Segoe UI', 'Helvetica Neue', system-ui, sans-serif;
-  color: var(--pm-color-text);
+  color: var(--pm-white);
   background: transparent;
-  padding: 0.3em 0.5em 0.5em;
-  width: 100%;
-  max-width: var(--pm-max-width);
+  width: 100%;            /* MagicMirror gère la largeur via position */
   box-sizing: border-box;
+  padding: 0.25em 0.35em 0.45em;
 }
 
 /* ── En-tête ─────────────────────────────────────────────────────── */
 .pm-header {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  padding-bottom: 5px;
-  margin-bottom: 6px;
-  border-bottom: 1px solid var(--pm-color-line);
+  gap: 6px;
+  flex-wrap: nowrap;
+  padding-bottom: 4px;
+  margin-bottom: 5px;
+  border-bottom: 1px solid var(--pm-line);
+  overflow: hidden;
 }
 
 .pm-name {
   font-size: var(--pm-font-base);
   font-weight: 700;
-  letter-spacing: .1em;
+  letter-spacing: .12em;
   text-transform: uppercase;
-  color: var(--pm-color-text);
+  color: var(--pm-white);
+  white-space: nowrap;
 }
 
 .pm-class {
   font-size: var(--pm-font-xs);
-  color: var(--pm-color-muted);
-  letter-spacing: .05em;
+  color: var(--pm-mid);
+  letter-spacing: .06em;
+  white-space: nowrap;
 }
 
 .pm-estab {
   font-size: var(--pm-font-xxs);
-  color: var(--pm-color-faint);
+  color: var(--pm-muted);
   margin-left: auto;
-  text-transform: uppercase;
   letter-spacing: .04em;
-}
-
-/* ── Grille dynamique ───────────────────────────────────────────── */
-.pm-cols {
-  display: grid;
-  gap: 0;
-}
-
-.pm-cols--3 { grid-template-columns: 1fr 1fr 1fr; }
-.pm-cols--2 { grid-template-columns: 1fr 1fr; }
-.pm-cols--1 { grid-template-columns: 1fr; }
-
-.pm-col {
-  padding: 0 var(--pm-gap-col);
-  border-left: 1px solid var(--pm-color-line);
-  min-width: 0;
+  text-transform: uppercase;
+  white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 55%;
 }
 
-.pm-col:first-child {
-  padding-left: 0;
-  border-left: none;
+/* ── Section ─────────────────────────────────────────────────────── */
+.pm-section {
+  margin-bottom: var(--pm-section-gap);
+  padding-bottom: var(--pm-section-gap);
+  border-bottom: 1px solid var(--pm-line);
 }
 
-/* Colonne Aujourd'hui — accent visuel */
-.pm-col--today {
-  border-left: 2px solid var(--pm-color-warning);
-  padding-left: calc(var(--pm-gap-col) - 2px);
-}
-.pm-col--today:first-child {
-  border-left: 2px solid var(--pm-color-warning);
-  padding-left: calc(var(--pm-gap-col) - 2px);
-}
-.pm-col--today .pm-col-title {
-  color: var(--pm-color-warning);
+.pm-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
 }
 
-.pm-col-title {
-  font-size: var(--pm-font-label);
-  letter-spacing: .18em;
-  text-transform: uppercase;
-  color: var(--pm-color-muted);
-  margin-bottom: 6px;
-  padding-bottom: 3px;
-  border-bottom: 1px solid var(--pm-color-line);
-}
-
-.pm-empty {
-  font-size: var(--pm-font-xs);
-  color: var(--pm-color-faint);
-  font-style: italic;
-}
-
-.pm-col-date {
-  font-size: var(--pm-font-xxs);
-  color: var(--pm-color-muted);
-  font-weight: 400;
-  letter-spacing: .04em;
-  text-transform: none;
-}
-
-.pm-col-hours {
-  font-size: var(--pm-font-xs);
-  color: var(--pm-color-text);
-  font-weight: 700;
-  letter-spacing: .02em;
-  text-transform: none;
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── Timeline ────────────────────────────────────────────────────── */
-.pm-tl-entry {
+/* ── En-tête de section ──────────────────────────────────────────── */
+.pm-section-head {
   display: flex;
   align-items: baseline;
-  gap: 0.1em;
-  margin-bottom: var(--pm-gap-entry);
-  line-height: 1.2;
+  gap: 6px;
+  margin-bottom: 5px;
 }
 
-.pm-time {
+.pm-section-label {
   font-size: var(--pm-font-xs);
-  color: var(--pm-color-time);
-  min-width: 2.8em;
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+  color: var(--pm-muted);
+  font-weight: 600;
   white-space: nowrap;
 }
 
-.pm-subject {
+.pm-section-label--today {
+  color: var(--pm-today);
+}
+
+.pm-section-hours {
+  font-size: var(--pm-font-xs);
+  color: var(--pm-bright);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.pm-section-count {
+  margin-left: auto;
+  font-size: var(--pm-font-xxs);
+  color: var(--pm-muted);
+  white-space: nowrap;
+}
+
+/* ── Cours ───────────────────────────────────────────────────────── */
+.pm-lesson {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35em;
+  margin-bottom: var(--pm-entry-gap);
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.pm-lesson-time {
   font-size: var(--pm-font-base);
-  font-weight: 600;
-  color: var(--pm-color-text);
+  color: var(--pm-bright);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  min-width: 2.6em;
+  flex-shrink: 0;
+}
+
+.pm-lesson-subject {
+  font-size: var(--pm-font-xl);
+  font-weight: 700;
+  color: var(--pm-white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+  min-width: 0;
+}
+
+.pm-lesson-meta {
+  font-size: var(--pm-font-sm);
+  color: var(--pm-mid);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 35%;
+  flex-shrink: 0;
+}
+
+/* Cours annulé */
+.pm-lesson--cancelled .pm-lesson-time {
+  color: var(--pm-faint);
+}
+
+.pm-lesson--cancelled .pm-lesson-subject {
+  text-decoration: line-through;
+  color: var(--pm-cancelled);
+  font-weight: 400;
+  font-size: var(--pm-font-base);  /* réduit — moins d'importance visuelle */
+}
+
+.pm-lesson-badge {
+  font-size: var(--pm-font-xxs);
+  letter-spacing: .08em;
+  color: var(--pm-cancelled);
+  border: 1px solid rgba(119, 119, 119, 0.4);
+  border-radius: 3px;
+  padding: 0 3px;
+  flex-shrink: 0;
+  align-self: center;
+  line-height: 1.5;
+}
+
+/* Séparateur repas */
+.pm-repas {
+  font-size: var(--pm-font-xxs);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--pm-muted);
+  padding: 2px 0;
+  margin: 2px 0 3px;
+  text-align: center;
+  opacity: 0.6;
+}
+
+.pm-empty {
+  font-size: var(--pm-font-sm);
+  color: var(--pm-muted);
+  font-style: italic;
+}
+
+/* ── Devoirs — échéance ──────────────────────────────────────────── */
+.pm-deadline {
+  font-size: var(--pm-font-xs);
+  letter-spacing: .10em;
+  text-transform: uppercase;
+  color: var(--pm-muted);
+  margin: 5px 0 3px;
+  padding-bottom: 2px;
+  border-bottom: 1px solid var(--pm-line);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.pm-cancelled .pm-subject {
-  text-decoration: line-through;
-  color: var(--pm-color-faint);
-  font-weight: 400;
-}
+.pm-deadline:first-of-type { margin-top: 0; }
 
-.pm-cancelled .pm-time {
-  color: var(--pm-color-ghost);
-}
-
-.pm-repas {
-  font-size: var(--pm-font-label);
-  letter-spacing: .18em;
-  text-transform: uppercase;
-  color: var(--pm-color-faint);
-  padding: 2px 0;
-  margin: 2px 0 4px;
-  border-top: 1px solid var(--pm-color-line);
-  border-bottom: 1px solid var(--pm-color-line);
-}
-
-/* ── Devoirs ─────────────────────────────────────────────────────── */
-.pm-hw-deadline {
-  font-size: var(--pm-font-xxs);
-  letter-spacing: .1em;
-  color: var(--pm-color-muted);
-  text-transform: uppercase;
-  margin: 6px 0 2px;
-  padding-bottom: 2px;
-  border-bottom: 1px solid var(--pm-color-line);
-}
-
-.pm-hw-deadline:first-child { margin-top: 0; }
-
-/* Devoirs pour demain — mise en évidence */
-.pm-hw-deadline--tomorrow {
-  color: var(--pm-color-warning);
-  border-bottom-color: var(--pm-color-warning);
+.pm-deadline--urgent {
+  color: var(--pm-urgent);
+  border-bottom-color: var(--pm-urgent);
   font-weight: 700;
 }
 
+/* ── Devoirs — entrée ────────────────────────────────────────────── */
 .pm-hw {
-  margin-bottom: var(--pm-gap-entry);
-  line-height: 1.25;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.3em;
+  margin-bottom: var(--pm-entry-gap);
+  padding-left: 0.3em;
+  min-width: 0;
+}
+
+.pm-hw--done {
+  opacity: 0.38;
+}
+
+.pm-hw-tick {
+  font-size: var(--pm-font-xs);
+  color: var(--pm-muted);
+  flex-shrink: 0;
+  min-width: 1em;
+  line-height: 1.6;
+}
+
+.pm-hw-body {
+  min-width: 0;
+  flex: 1;
 }
 
 .pm-hw-subject {
-  font-size: var(--pm-font-sm);
+  font-size: var(--pm-font-base);
   font-weight: 700;
-  color: var(--pm-color-text);
+  color: var(--pm-white);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .pm-hw-desc {
-  display: block;
-  font-size: var(--pm-font-xs);
-  color: var(--pm-color-time);
-  padding-top: 1px;
-}
-
-/* ── Cartouche ───────────────────────────────────────────────────── */
-.pm-cartouche {
-  display: flex;
-  gap: 16px;
-  flex-wrap: wrap;
-  margin-top: 8px;
-  padding-top: 5px;
-  border-top: 1px solid var(--pm-color-line);
-}
-
-.pm-cart-section { flex: 1; min-width: 100px; }
-
-.pm-cart-title {
-  font-size: var(--pm-font-label);
-  letter-spacing: .18em;
-  text-transform: uppercase;
-  color: var(--pm-color-muted);
-  margin-bottom: 3px;
-}
-
-.pm-cart-entry {
-  font-size: var(--pm-font-xs);
-  color: var(--pm-color-text);
-  margin-bottom: 2px;
+  font-size: var(--pm-font-sm);
+  color: var(--pm-mid);
   line-height: 1.3;
+  /* Troncature à 2 lignes max */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
 }
 
-.pm-cart-date {
-  color: var(--pm-color-muted);
-  margin-right: 4px;
+/* ── Alertes (absences / retards / punitions) ────────────────────── */
+.pm-alerts {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-bottom: 5px;
 }
 
-/* ── Error / Loading ─────────────────────────────────────────────── */
-#PRONOTE_LOADING { text-align: center; font-size: 1.1rem; }
+.pm-badge {
+  font-size: var(--pm-font-xxs);
+  letter-spacing: .06em;
+  padding: 1px 5px 2px;
+  border-radius: 3px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.pm-badge--abs {
+  color: #FF8A80;
+  background: rgba(231, 76, 60, 0.12);
+  border: 1px solid rgba(231, 76, 60, 0.40);
+}
+
+.pm-badge--delay {
+  color: #FFD180;
+  background: rgba(240, 165, 0, 0.12);
+  border: 1px solid rgba(240, 165, 0, 0.40);
+}
+
+.pm-badge--pun {
+  color: #CE93D8;
+  background: rgba(156, 39, 176, 0.12);
+  border: 1px solid rgba(156, 39, 176, 0.40);
+}
+
+/* Lignes de détail dans les alertes */
+.pm-alert-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35em;
+  margin-bottom: var(--pm-entry-gap);
+  min-width: 0;
+}
+
+.pm-alert-date {
+  font-size: var(--pm-font-sm);
+  color: var(--pm-mid);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  min-width: 3.5em;
+  flex-shrink: 0;
+}
+
+.pm-alert-info {
+  font-size: var(--pm-font-sm);
+  color: var(--pm-bright);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pm-alert-info--nonjust {
+  color: #FF8A80;
+}
+
+/* ── Loading ─────────────────────────────────────────────────────── */
+#PRONOTE_LOADING {
+  text-align: center;
+  padding: 0.5em 0;
+}
 
 #PRONOTE_LOGO {
   background-image: url(https://www.index-education.com/contenu/img/fr/pronote-horizontal.svg);
-  height: 80px; width: 220px;
-  background-size: 100%; background-position: center; background-repeat: no-repeat;
-  margin: 0 auto;
+  height: 65px;
+  width: 195px;
+  background-size: 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  margin: 0 auto 6px;
+  filter: brightness(0) invert(1) drop-shadow(0 1px 3px rgba(0,0,0,0.8));
 }
 
-#PRONOTE_ERROR { padding-bottom: 8px; text-align: center; }
-.PRONOTE_ERROR_TITLE  { font-size: large;   font-weight: bold; color: var(--pm-color-error);   margin-bottom: 6px; }
-.PRONOTE_ERROR_DETAIL { font-size: small;   color: var(--pm-color-warning);                    margin-bottom: 4px; }
-.PRONOTE_ERROR_ACTION { font-size: x-small; color: var(--pm-color-muted);   font-style: italic; margin-bottom: 4px; }
+#PRONOTE_TEXT_SIMPLE {
+  font-size: var(--pm-font-sm);
+  color: var(--pm-muted);
+  font-style: italic;
+}
+
+/* ── Erreur ──────────────────────────────────────────────────────── */
+#PRONOTE_ERROR {
+  padding-bottom: 8px;
+  text-align: center;
+}
+
+.PRONOTE_ERROR_TITLE {
+  font-size: 0.92rem;
+  font-weight: bold;
+  color: var(--pm-error);
+  margin-bottom: 6px;
+}
+
+.PRONOTE_ERROR_DETAIL {
+  font-size: 0.76rem;
+  color: var(--pm-warn);
+  margin-bottom: 4px;
+}
+
+.PRONOTE_ERROR_ACTION {
+  font-size: 0.66rem;
+  color: var(--pm-mid);
+  font-style: italic;
+  margin-bottom: 4px;
+}
 
 .PRONOTE_ERROR_URL {
-  font-size: small; color: var(--pm-color-info);
-  background: rgba(52,152,219,.1); border: 1px solid rgba(52,152,219,.4);
-  border-radius: 4px; padding: 4px 10px; margin: 6px auto;
-  display: inline-block; word-break: break-all;
+  font-size: 0.72rem;
+  color: var(--pm-info);
+  background: rgba(52, 152, 219, 0.10);
+  border: 1px solid rgba(52, 152, 219, 0.40);
+  border-radius: 4px;
+  padding: 4px 10px;
+  margin: 6px auto;
+  display: inline-block;
+  word-break: break-all;
 }
 
-#PRONOTE_CONFIG_LINK { margin-top: 8px; font-size: small; color: var(--pm-color-muted); }
+#PRONOTE_CONFIG_LINK {
+  margin-top: 8px;
+  font-size: 0.68rem;
+  color: var(--pm-muted);
+}
