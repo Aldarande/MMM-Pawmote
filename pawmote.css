@@ -1,42 +1,45 @@
 /* =====================================================================
-   MMM-Pawmote — pawmote.css  v2  (vertical, haut contraste, verre)
-
-   Personnalisation depuis custom.css :
-     .MMM-Pawmote { --pm-today: #00BFFF; }
+   MMM-Pawmote — pawmote.css  v3  — Timeline latérale
    ===================================================================== */
 
 .MMM-Pawmote {
 
-  /* ── Palette haute lisibilité (fond noir + vitre sans teint) ─────
-     Règle : aucun texte lisible en dessous de #CCCCCC                */
-  --pm-white:      #FFFFFF;   /* sujets, valeurs importantes          */
-  --pm-bright:     #F0F0F0;   /* heures, dates, noms                  */
-  --pm-mid:        #CCCCCC;   /* descriptions, salles, profs          */
-  --pm-muted:      #999999;   /* labels de section, établissement     */
-  --pm-faint:      #777777;   /* cours annulés, devoirs cochés        */
-  --pm-line:       #3A3A3A;   /* séparateurs                          */
+  /* ── Palette ─────────────────────────────────────────────────────
+     Règle : aucun texte lisible sous #CCCCCC (fond noir + verre)    */
+  --pm-white:      #FFFFFF;
+  --pm-bright:     #F0F0F0;
+  --pm-mid:        #CCCCCC;
+  --pm-muted:      #999999;
+  --pm-faint:      #666666;
+  --pm-line:       #2A2A2A;
+  --pm-line-soft:  #1E1E1E;
 
   /* ── Accents ──────────────────────────────────────────────────── */
-  --pm-today:      #F0A500;   /* accent "Aujourd'hui"                 */
-  --pm-urgent:     #FF6B35;   /* devoir pour demain                   */
-  --pm-cancelled:  #777777;   /* cours annulé (badge + texte barré)   */
+  --pm-today:      #F0A500;
+  --pm-urgent:     #FF6B35;
+  --pm-cancelled:  #555555;
   --pm-error:      #E74C3C;
   --pm-warn:       #F0A500;
   --pm-info:       #3498DB;
 
+  /* ── Timeline ─────────────────────────────────────────────────── */
+  --pm-rail:       2px;           /* épaisseur du rail vertical      */
+  --pm-node:       8px;           /* diamètre du nœud de section     */
+  --pm-indent:     14px;          /* retrait gauche depuis le rail   */
+
   /* ── Typographie ─────────────────────────────────────────────── */
-  --pm-font-xl:    0.92rem;   /* sujet du cours (le plus important)   */
-  --pm-font-base:  0.80rem;   /* heures, échéances devoirs            */
-  --pm-font-sm:    0.70rem;   /* salle, prof, description devoir      */
-  --pm-font-xs:    0.60rem;   /* labels de section (UPPERCASE tiny)   */
-  --pm-font-xxs:   0.52rem;   /* établissement, badges                */
+  --pm-font-xl:    0.90rem;       /* sujet du cours                  */
+  --pm-font-base:  0.78rem;       /* heures, échéances               */
+  --pm-font-sm:    0.68rem;       /* salle, prof, desc devoir        */
+  --pm-font-xs:    0.58rem;       /* labels de section               */
+  --pm-font-xxs:   0.50rem;       /* établissement, badges           */
 
   /* ── Espacement ──────────────────────────────────────────────── */
-  --pm-entry-gap:   0.28em;
-  --pm-section-gap: 0.55em;
+  --pm-entry-gap:  0.26em;
+  --pm-section-gap:0.70em;
 }
 
-/* ── Ombre pour lisibilité à travers le verre ───────────────────── */
+/* ── Ombre texte pour lisibilité à travers le verre ─────────────── */
 .pm-wrap,
 .pm-wrap * {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.90);
@@ -47,21 +50,29 @@
   font-family: 'Segoe UI', 'Helvetica Neue', system-ui, sans-serif;
   color: var(--pm-white);
   background: transparent;
-  width: 100%;            /* MagicMirror gère la largeur via position */
+  width: 100%;
   box-sizing: border-box;
-  padding: 0.25em 0.35em 0.45em;
+  padding: 0.3em 0.2em 0.5em;
 }
 
 /* ── En-tête ─────────────────────────────────────────────────────── */
 .pm-header {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
-  flex-wrap: nowrap;
-  padding-bottom: 4px;
-  margin-bottom: 5px;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
   border-bottom: 1px solid var(--pm-line);
-  overflow: hidden;
+}
+
+/* Point coloré d'accroche du header */
+.pm-header-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--pm-today);
+  flex-shrink: 0;
+  box-shadow: 0 0 6px rgba(240, 165, 0, 0.6);
 }
 
 .pm-name {
@@ -75,34 +86,65 @@
 
 .pm-class {
   font-size: var(--pm-font-xs);
-  color: var(--pm-mid);
+  color: var(--pm-muted);
   letter-spacing: .06em;
   white-space: nowrap;
 }
 
 .pm-estab {
   font-size: var(--pm-font-xxs);
-  color: var(--pm-muted);
+  color: var(--pm-faint);
   margin-left: auto;
   letter-spacing: .04em;
   text-transform: uppercase;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 55%;
+  max-width: 50%;
+}
+
+/* ── Timeline — conteneur ────────────────────────────────────────── */
+.pm-timeline {
+  position: relative;
+  padding-left: calc(var(--pm-node) + var(--pm-indent));
+}
+
+/* Rail vertical continu */
+.pm-timeline::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--pm-node) / 2 - var(--pm-rail) / 2);
+  top: 4px;
+  bottom: 0;
+  width: var(--pm-rail);
+  background: var(--pm-line);
 }
 
 /* ── Section ─────────────────────────────────────────────────────── */
 .pm-section {
+  position: relative;
   margin-bottom: var(--pm-section-gap);
-  padding-bottom: var(--pm-section-gap);
-  border-bottom: 1px solid var(--pm-line);
 }
 
-.pm-section:last-child {
-  border-bottom: none;
-  margin-bottom: 0;
-  padding-bottom: 0;
+/* Nœud circulaire sur le rail */
+.pm-section::before {
+  content: '';
+  position: absolute;
+  left: calc(-1 * var(--pm-node) - var(--pm-indent) + var(--pm-node) / 2 - var(--pm-node) / 2);
+  top: 3px;
+  width: var(--pm-node);
+  height: var(--pm-node);
+  border-radius: 50%;
+  background: #121212;
+  border: var(--pm-rail) solid var(--pm-line);
+  box-sizing: border-box;
+}
+
+/* Nœud aujourd'hui — orange lumineux */
+.pm-section--today::before {
+  border-color: var(--pm-today);
+  background: rgba(240, 165, 0, 0.15);
+  box-shadow: 0 0 5px rgba(240, 165, 0, 0.4);
 }
 
 /* ── En-tête de section ──────────────────────────────────────────── */
@@ -138,14 +180,13 @@
   margin-left: auto;
   font-size: var(--pm-font-xxs);
   color: var(--pm-muted);
-  white-space: nowrap;
 }
 
 /* ── Cours ───────────────────────────────────────────────────────── */
 .pm-lesson {
   display: flex;
   align-items: baseline;
-  gap: 0.35em;
+  gap: 0.32em;
   margin-bottom: var(--pm-entry-gap);
   min-width: 0;
   line-height: 1.25;
@@ -153,10 +194,10 @@
 
 .pm-lesson-time {
   font-size: var(--pm-font-base);
-  color: var(--pm-bright);
+  color: var(--pm-muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  min-width: 2.6em;
+  min-width: 2.5em;
   flex-shrink: 0;
 }
 
@@ -173,60 +214,65 @@
 
 .pm-lesson-meta {
   font-size: var(--pm-font-sm);
-  color: var(--pm-mid);
+  color: var(--pm-faint);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 35%;
+  max-width: 38%;
   flex-shrink: 0;
 }
 
 /* Cours annulé */
 .pm-lesson--cancelled .pm-lesson-time {
-  color: var(--pm-faint);
+  color: var(--pm-cancelled);
 }
 
 .pm-lesson--cancelled .pm-lesson-subject {
   text-decoration: line-through;
   color: var(--pm-cancelled);
   font-weight: 400;
-  font-size: var(--pm-font-base);  /* réduit — moins d'importance visuelle */
+  font-size: var(--pm-font-base);
 }
 
 .pm-lesson-badge {
   font-size: var(--pm-font-xxs);
-  letter-spacing: .08em;
+  letter-spacing: .06em;
   color: var(--pm-cancelled);
-  border: 1px solid rgba(119, 119, 119, 0.4);
-  border-radius: 3px;
+  border: 1px solid rgba(85, 85, 85, 0.45);
+  border-radius: 2px;
   padding: 0 3px;
   flex-shrink: 0;
   align-self: center;
-  line-height: 1.5;
+  line-height: 1.6;
+}
+
+/* Retenue */
+.pm-lesson--detention .pm-lesson-subject {
+  color: var(--pm-warn);
 }
 
 /* Séparateur repas */
 .pm-repas {
   font-size: var(--pm-font-xxs);
-  letter-spacing: .14em;
+  letter-spacing: .12em;
   text-transform: uppercase;
-  color: var(--pm-muted);
+  color: var(--pm-faint);
   padding: 2px 0;
   margin: 2px 0 3px;
   text-align: center;
-  opacity: 0.6;
+  opacity: 0.55;
 }
 
 .pm-empty {
   font-size: var(--pm-font-sm);
-  color: var(--pm-muted);
+  color: var(--pm-faint);
   font-style: italic;
 }
 
 /* ── Devoirs — échéance ──────────────────────────────────────────── */
 .pm-deadline {
   font-size: var(--pm-font-xs);
-  letter-spacing: .10em;
+  letter-spacing: .09em;
   text-transform: uppercase;
   color: var(--pm-muted);
   margin: 5px 0 3px;
@@ -241,7 +287,7 @@
 
 .pm-deadline--urgent {
   color: var(--pm-urgent);
-  border-bottom-color: var(--pm-urgent);
+  border-bottom-color: rgba(255, 107, 53, 0.5);
   font-weight: 700;
 }
 
@@ -251,20 +297,18 @@
   align-items: flex-start;
   gap: 0.3em;
   margin-bottom: var(--pm-entry-gap);
-  padding-left: 0.3em;
+  padding-left: 0.2em;
   min-width: 0;
 }
 
-.pm-hw--done {
-  opacity: 0.38;
-}
+.pm-hw--done { opacity: 0.35; }
 
 .pm-hw-tick {
   font-size: var(--pm-font-xs);
   color: var(--pm-muted);
   flex-shrink: 0;
   min-width: 1em;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 .pm-hw-body {
@@ -285,7 +329,6 @@
   font-size: var(--pm-font-sm);
   color: var(--pm-mid);
   line-height: 1.3;
-  /* Troncature à 2 lignes max */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -293,18 +336,18 @@
   word-break: break-word;
 }
 
-/* ── Alertes (absences / retards / punitions) ────────────────────── */
+/* ── Alertes ─────────────────────────────────────────────────────── */
 .pm-alerts {
   display: flex;
   gap: 5px;
   flex-wrap: wrap;
-  margin-bottom: 5px;
+  margin-bottom: 6px;
 }
 
 .pm-badge {
   font-size: var(--pm-font-xxs);
   letter-spacing: .06em;
-  padding: 1px 5px 2px;
+  padding: 2px 6px;
   border-radius: 3px;
   font-weight: 600;
   white-space: nowrap;
@@ -313,22 +356,21 @@
 .pm-badge--abs {
   color: #FF8A80;
   background: rgba(231, 76, 60, 0.12);
-  border: 1px solid rgba(231, 76, 60, 0.40);
+  border: 1px solid rgba(231, 76, 60, 0.38);
 }
 
 .pm-badge--delay {
   color: #FFD180;
   background: rgba(240, 165, 0, 0.12);
-  border: 1px solid rgba(240, 165, 0, 0.40);
+  border: 1px solid rgba(240, 165, 0, 0.38);
 }
 
 .pm-badge--pun {
   color: #CE93D8;
   background: rgba(156, 39, 176, 0.12);
-  border: 1px solid rgba(156, 39, 176, 0.40);
+  border: 1px solid rgba(156, 39, 176, 0.38);
 }
 
-/* Lignes de détail dans les alertes */
 .pm-alert-row {
   display: flex;
   align-items: baseline;
@@ -339,30 +381,27 @@
 
 .pm-alert-date {
   font-size: var(--pm-font-sm);
-  color: var(--pm-mid);
+  color: var(--pm-muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
-  min-width: 3.5em;
+  min-width: 3.2em;
   flex-shrink: 0;
 }
 
 .pm-alert-info {
   font-size: var(--pm-font-sm);
   color: var(--pm-bright);
-  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.pm-alert-info--nonjust {
-  color: #FF8A80;
-}
+.pm-alert-info--nonjust { color: #FF8A80; }
 
-/* ── Loading ─────────────────────────────────────────────────────── */
+/* ── Loading / Erreur ────────────────────────────────────────────── */
 #PRONOTE_LOADING {
   text-align: center;
-  padding: 0.5em 0;
+  padding: 0.6em 0;
 }
 
 #PRONOTE_LOGO {
@@ -382,46 +421,16 @@
   font-style: italic;
 }
 
-/* ── Erreur ──────────────────────────────────────────────────────── */
-#PRONOTE_ERROR {
-  padding-bottom: 8px;
-  text-align: center;
-}
-
-.PRONOTE_ERROR_TITLE {
-  font-size: 0.92rem;
-  font-weight: bold;
-  color: var(--pm-error);
-  margin-bottom: 6px;
-}
-
-.PRONOTE_ERROR_DETAIL {
-  font-size: 0.76rem;
-  color: var(--pm-warn);
-  margin-bottom: 4px;
-}
-
-.PRONOTE_ERROR_ACTION {
-  font-size: 0.66rem;
-  color: var(--pm-mid);
-  font-style: italic;
-  margin-bottom: 4px;
-}
+#PRONOTE_ERROR       { padding-bottom: 8px; text-align: center; }
+.PRONOTE_ERROR_TITLE { font-size: 0.90rem; font-weight: bold; color: var(--pm-error); margin-bottom: 6px; }
+.PRONOTE_ERROR_DETAIL{ font-size: 0.75rem; color: var(--pm-warn); margin-bottom: 4px; }
+.PRONOTE_ERROR_ACTION{ font-size: 0.65rem; color: var(--pm-mid); font-style: italic; margin-bottom: 4px; }
 
 .PRONOTE_ERROR_URL {
-  font-size: 0.72rem;
-  color: var(--pm-info);
-  background: rgba(52, 152, 219, 0.10);
-  border: 1px solid rgba(52, 152, 219, 0.40);
-  border-radius: 4px;
-  padding: 4px 10px;
-  margin: 6px auto;
-  display: inline-block;
-  word-break: break-all;
+  font-size: 0.70rem; color: var(--pm-info);
+  background: rgba(52,152,219,.10); border: 1px solid rgba(52,152,219,.38);
+  border-radius: 4px; padding: 4px 10px; margin: 6px auto;
+  display: inline-block; word-break: break-all;
 }
 
-#PRONOTE_CONFIG_LINK {
-  margin-top: 8px;
-  font-size: 0.68rem;
-  color: var(--pm-muted);
-}
+#PRONOTE_CONFIG_LINK { margin-top: 8px; font-size: 0.66rem; color: var(--pm-muted); }
