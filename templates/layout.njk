@@ -20,40 +20,65 @@
   <div class="pm-timeline">
 
     {# ── Aujourd'hui ─────────────────────────────────────────────── #}
-    {% if showToday and userData.timetableToday | length > 0 %}
-    <div class="pm-section pm-section--today">
-      <div class="pm-section-head">
-        <span class="pm-section-label pm-section-label--today">Aujourd'hui</span>
-        {% if userData.todayStart %}
-          <span class="pm-section-hours">{{ userData.todayStart | escape }}–{{ userData.todayEnd | escape }}</span>
-        {% endif %}
-      </div>
+    {% if showToday %}
 
-      {% for entry in userData.timetableToday %}
-        {% if loop.index0 > 0 %}
-          {% set prev = userData.timetableToday[loop.index0 - 1] %}
-          {% if prev.end <= "14:00" and entry.start >= "11:45" and prev.end < entry.start %}
-            <div class="pm-repas">· repas ·</div>
-          {% endif %}
-        {% endif %}
-
-        <div class="pm-lesson{% if entry.cancelled %} pm-lesson--cancelled{% elif entry.isDetention %} pm-lesson--detention{% endif %}">
-          <span class="pm-lesson-time">{{ entry.start | escape }}</span>
-          <span class="pm-lesson-subject">{{ entry.subject | escape }}</span>
-          {% if entry.cancelled %}
-            <span class="pm-lesson-badge">ANN</span>
-          {% elif entry.isDetention %}
-            <span class="pm-lesson-badge">RET</span>
-          {% else %}
-            {% if config.Timetable.displayRoom and entry.room %}
-              <span class="pm-lesson-meta">{{ entry.room | escape }}</span>
-            {% elif config.Timetable.displayTeacher and entry.teacher %}
-              <span class="pm-lesson-meta">{{ entry.teacher | escape }}</span>
-            {% endif %}
+      {% if userData.timetableToday | length > 0 %}
+      {# Journée scolaire normale #}
+      <div class="pm-section pm-section--today">
+        <div class="pm-section-head">
+          <span class="pm-section-label pm-section-label--today">Aujourd'hui</span>
+          {% if userData.todayStart %}
+            <span class="pm-section-hours">{{ userData.todayStart | escape }}–{{ userData.todayEnd | escape }}</span>
           {% endif %}
         </div>
-      {% endfor %}
-    </div>
+
+        {% for entry in userData.timetableToday %}
+          {% if loop.index0 > 0 %}
+            {% set prev = userData.timetableToday[loop.index0 - 1] %}
+            {% if prev.end <= "14:00" and entry.start >= "11:45" and prev.end < entry.start %}
+              <div class="pm-repas">· repas ·</div>
+            {% endif %}
+          {% endif %}
+
+          <div class="pm-lesson{% if entry.cancelled %} pm-lesson--cancelled{% elif entry.isDetention %} pm-lesson--detention{% endif %}">
+            <span class="pm-lesson-time">{{ entry.start | escape }}</span>
+            <span class="pm-lesson-subject">{{ entry.subject | escape }}</span>
+            {% if entry.cancelled %}
+              <span class="pm-lesson-badge">ANN</span>
+            {% elif entry.isDetention %}
+              <span class="pm-lesson-badge">RET</span>
+            {% else %}
+              {% if config.Timetable.displayRoom and entry.room %}
+                <span class="pm-lesson-meta">{{ entry.room | escape }}</span>
+              {% elif config.Timetable.displayTeacher and entry.teacher %}
+                <span class="pm-lesson-meta">{{ entry.teacher | escape }}</span>
+              {% endif %}
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+
+      {% elif config.Timetable.showHolidays %}
+      {# Pas de cours aujourd'hui + showHolidays activé → bloc vacances #}
+      <div class="pm-section pm-section--holiday">
+        <div class="pm-section-head">
+          <span class="pm-section-label pm-section-label--holiday">Vacances</span>
+        </div>
+        {% if userData.timetableNextDay.day %}
+          <div class="pm-holiday-resume">
+            Reprise le <strong>{{ userData.timetableNextDay.day | escape }}</strong>
+          </div>
+          {% if userData.timetableNextDay.daysUntil == 1 %}
+            <div class="pm-holiday-countdown">demain</div>
+          {% elif userData.timetableNextDay.daysUntil > 1 %}
+            <div class="pm-holiday-countdown">dans {{ userData.timetableNextDay.daysUntil }} jours</div>
+          {% endif %}
+        {% else %}
+          <div class="pm-holiday-resume">Aucun cours à venir trouvé</div>
+        {% endif %}
+      </div>
+      {% endif %}
+
     {% endif %}
 
     {# ── Prochain jour scolaire ──────────────────────────────────── #}

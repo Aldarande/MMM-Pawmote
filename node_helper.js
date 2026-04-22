@@ -944,11 +944,19 @@ module.exports = NodeHelper.create({
           ? formatDate(nextDate, lang, { weekday: 'long', day: 'numeric', month: 'long' })
           : '';
         const sortedNext = [...nextEntries].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+        /* Calcul du nombre de jours jusqu'au prochain jour scolaire */
+        const msPerDay   = 24 * 60 * 60 * 1000;
+        const todayMid   = new Date(today); todayMid.setHours(0, 0, 0, 0);
+        const daysUntil  = nextDate
+          ? Math.round((new Date(nextDate).setHours(0,0,0,0) - todayMid.getTime()) / msPerDay)
+          : null;
+
         data.timetableNextDay = {
-          day:     dayLabel,
-          start:   sortedNext.length ? formatTime(sortedNext[0].startDate, lang) : '',
-          end:     sortedNext.length ? formatTime(sortedNext[sortedNext.length - 1].endDate, lang) : '',
-          classes: [...nextEntries]
+          day:      dayLabel,
+          start:    sortedNext.length ? formatTime(sortedNext[0].startDate, lang) : '',
+          end:      sortedNext.length ? formatTime(sortedNext[sortedNext.length - 1].endDate, lang) : '',
+          daysUntil,
+          classes:  [...nextEntries]
             .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
             .map(e => mapTimetableEntry(e, lang))
         };
