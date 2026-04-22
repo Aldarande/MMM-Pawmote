@@ -960,7 +960,9 @@ module.exports = NodeHelper.create({
             .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
             .map(e => mapTimetableEntry(e, lang))
         };
-        Log.info(`EDT aujourd'hui: ${data.timetableToday.length} cours | prochain jour: ${data.timetableNextDay.classes.length} cours`);
+        /* Flag vacances : aucun cours aujourd'hui (week-end inclus) */
+        data.noClassesToday = data.timetableToday.length === 0;
+        Log.info(`EDT aujourd'hui: ${data.timetableToday.length} cours | prochain jour: ${data.timetableNextDay.classes.length} cours | vacances: ${data.noClassesToday}`);
       } catch (e) {
         Log.error('EDT:', e.message);
       }

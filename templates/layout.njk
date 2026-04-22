@@ -123,7 +123,7 @@
     {% endif %}
 
     {# ── Devoirs ─────────────────────────────────────────────────── #}
-    {% if showHomeworks %}
+    {% if showHomeworks and (not userData.noClassesToday or config.Homeworks.showHolidays) %}
       {% set pendingCount = 0 %}
       {% for hw in userData.homeworks %}
         {% if not hw.done %}{% set pendingCount = pendingCount + 1 %}{% endif %}
@@ -180,9 +180,14 @@
     {% endif %}
 
     {# ── Alertes : absences / retards / punitions ────────────────── #}
-    {% set absCount = userData.absences   | length %}
-    {% set delCount = userData.delays     | length %}
-    {% set punCount = userData.punishments| length %}
+    {# Alertes : masquées pendant les vacances si showHolidays désactivé #}
+    {% set showAbs = config.Absences.display    and (not userData.noClassesToday or config.Absences.showHolidays) %}
+    {% set showDel = config.Delays.display      and (not userData.noClassesToday or config.Delays.showHolidays) %}
+    {% set showPun = config.Punishments.display and (not userData.noClassesToday or config.Punishments.showHolidays) %}
+
+    {% set absCount = userData.absences    | length if showAbs else 0 %}
+    {% set delCount = userData.delays      | length if showDel else 0 %}
+    {% set punCount = userData.punishments | length if showPun else 0 %}
 
     {% if absCount > 0 or delCount > 0 or punCount > 0 %}
     <div class="pm-section">
@@ -198,28 +203,28 @@
         {% endif %}
       </div>
 
-      {% for a in userData.absences %}
+      {% if showAbs %}{% for a in userData.absences %}
       <div class="pm-alert-row">
         <span class="pm-alert-date">{{ a.formattedDate | escape }}</span>
         <span class="pm-alert-info{% if not a.justified %} pm-alert-info--nonjust{% endif %}">
           Absence{% if not a.justified %} · Non justifiée{% endif %}{% if a.reason %} · {{ a.reason | escape }}{% endif %}
         </span>
       </div>
-      {% endfor %}
+      {% endfor %}{% endif %}
 
-      {% for d in userData.delays %}
+      {% if showDel %}{% for d in userData.delays %}
       <div class="pm-alert-row">
         <span class="pm-alert-date">{{ d.formattedDate | escape }}</span>
         <span class="pm-alert-info">Retard {{ d.duration | escape }} min{% if d.reason %} · {{ d.reason | escape }}{% endif %}</span>
       </div>
-      {% endfor %}
+      {% endfor %}{% endif %}
 
-      {% for p in userData.punishments %}
+      {% if showPun %}{% for p in userData.punishments %}
       <div class="pm-alert-row">
         <span class="pm-alert-date">{{ p.formattedDate | escape }}</span>
         <span class="pm-alert-info">{{ p.type | escape }}{% if p.reason %} · {{ p.reason | escape }}{% endif %}</span>
       </div>
-      {% endfor %}
+      {% endfor %}{% endif %}
     </div>
     {% endif %}
 
