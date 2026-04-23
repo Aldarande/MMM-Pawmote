@@ -123,13 +123,23 @@ Module.register('MMM-Pawmote', {
       Punishments: this._isVisible(this.config.Punishments)
     };
 
-    /* Logique colonnes — calculée ici pour garder les templates simples */
-    const showToday     = (this.userData.timetableToday || []).length > 0;
-    const showHomeworks = (this.userData.homeworks || []).filter(h => !h.done).length > 0;
-    const colCount      = [showToday, true, showHomeworks].filter(Boolean).length;
-    const colClass      = `pm-cols--${colCount}`;
+    /* ── Visibilité par sous-section ────────────────────────────────
+       vis.Timetable = false  → toute la section est masquée (display:false ou hors plage horaire)
+       displayToday / displayNextDay → choix indépendant dans la section visible           */
+    const ttVis      = vis.Timetable;
+    const hasToday   = (this.userData.timetableToday || []).length > 0;
 
-    Log.info(`[${this.name}] vis=${JSON.stringify(vis)} grades=${this.userData.grades?.length} absences=${this.userData.absences?.length}`);
+    /* Aujourd'hui : affiché si displayToday ET (cours présents OU showHolidays activé) */
+    const showToday   = !!(ttVis && this.config.Timetable.displayToday
+                           && (hasToday || this.config.Timetable.showHolidays));
+
+    /* Prochain jour : affiché si displayNextDay ET des données sont disponibles */
+    const showNextDay = !!(ttVis && this.config.Timetable.displayNextDay
+                           && this.userData.timetableNextDay);
+
+    const showHomeworks = (this.userData.homeworks || []).filter(h => !h.done).length > 0;
+
+    Log.info(`[${this.name}] showToday=${showToday} showNextDay=${showNextDay} grades=${this.userData.grades?.length} absences=${this.userData.absences?.length}`);
     const today = new Date();
     const todayLabel = today.toLocaleDateString(this.config.language || 'fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     return {
@@ -137,8 +147,8 @@ Module.register('MMM-Pawmote', {
       userData:     this.userData,
       vis,
       showToday,
+      showNextDay,
       showHomeworks,
-      colClass,
       todayLabel
     };
   },

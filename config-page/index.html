@@ -327,6 +327,21 @@
       background: var(--highlight);
     }
 
+    /* ── Sous-en-têtes de groupe dans une section ────────────────────── */
+    .cfg-subhead {
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .10em;
+      text-transform: uppercase;
+      color: var(--highlight);
+      padding: 8px 0 4px;
+      border-top: 1px solid rgba(233,69,96,.18);
+      margin-top: 4px;
+    }
+    .cfg-subhead:first-of-type { border-top: 1px solid var(--border); }
+    .cfg-row--sub .cfg-key { color: #b0d8ff; padding-left: 10px; }
+    .cfg-row--sub { background: rgba(15,52,96,.25); border-radius: 4px; padding-left: 4px; }
+
     /* ── Config output ───────────────────────────────────────────────── */
     #cfg-output-wrap { margin-top: 16px; display: none; }
     #cfg-output {
@@ -592,15 +607,24 @@
           <span class="cfg-section-arrow">▾</span>
         </div>
         <div class="cfg-body">
+
+          <!-- Activation globale + plage horaire -->
           <div class="cfg-row"><span class="cfg-key">display</span><span class="cfg-ctrl"><label class="sw"><input type="checkbox" id="cfg-tt-display" checked><span class="sw-track"></span></label></span><span class="cfg-def">true</span></div>
-          <div class="cfg-row"><span class="cfg-key">displayToday</span><span class="cfg-ctrl"><label class="sw"><input type="checkbox" id="cfg-tt-today" checked><span class="sw-track"></span></label></span><span class="cfg-def">true</span></div>
-          <div class="cfg-row"><span class="cfg-key">displayNextDay</span><span class="cfg-ctrl"><label class="sw"><input type="checkbox" id="cfg-tt-nextday" checked><span class="sw-track"></span></label></span><span class="cfg-def">true</span></div>
-          <div class="cfg-row"><span class="cfg-key">displayTeacher</span><span class="cfg-ctrl"><label class="sw"><input type="checkbox" id="cfg-tt-teacher" checked><span class="sw-track"></span></label></span><span class="cfg-def">true</span></div>
-          <div class="cfg-row"><span class="cfg-key">displayRoom</span><span class="cfg-ctrl"><label class="sw"><input type="checkbox" id="cfg-tt-room" checked><span class="sw-track"></span></label></span><span class="cfg-def">true</span></div>
-          <div class="cfg-row"><span class="cfg-key">showOnlyFuture</span><span class="cfg-ctrl"><label class="sw"><input type="checkbox" id="cfg-tt-future"><span class="sw-track"></span></label></span><span class="cfg-def">false</span></div>
-          <div class="cfg-row"><span class="cfg-key">showHolidays</span><span class="cfg-ctrl"><label class="sw"><input type="checkbox" id="cfg-tt-holidays"><span class="sw-track"></span></label></span><span class="cfg-def">false</span></div>
           <div class="cfg-row"><span class="cfg-key">showFrom</span><span class="cfg-ctrl"><input type="text" id="cfg-tt-from" value="00:00" maxlength="5" style="max-width:80px"></span><span class="cfg-def">"00:00"</span></div>
           <div class="cfg-row"><span class="cfg-key">showUntil</span><span class="cfg-ctrl"><input type="text" id="cfg-tt-until" value="23:59" maxlength="5" style="max-width:80px"></span><span class="cfg-def">"23:59"</span></div>
+
+          <!-- Sous-groupe : Aujourd'hui -->
+          <div class="cfg-subhead">📅 Aujourd'hui</div>
+          <div class="cfg-row cfg-row--sub"><span class="cfg-key">displayToday</span><span class="cfg-ctrl"><label class="sw"><input type="checkbox" id="cfg-tt-today" checked><span class="sw-track"></span></label></span><span class="cfg-def">true</span></div>
+          <div class="cfg-row cfg-row--sub"><span class="cfg-key">showHolidays</span><span class="cfg-ctrl"><label class="sw"><input type="checkbox" id="cfg-tt-holidays"><span class="sw-track"></span></label></span><span class="cfg-def">false</span></div>
+          <div class="cfg-row cfg-row--sub"><span class="cfg-key">showOnlyFuture</span><span class="cfg-ctrl"><label class="sw"><input type="checkbox" id="cfg-tt-future"><span class="sw-track"></span></label></span><span class="cfg-def">false</span></div>
+          <div class="cfg-row cfg-row--sub"><span class="cfg-key">displayTeacher</span><span class="cfg-ctrl"><label class="sw"><input type="checkbox" id="cfg-tt-teacher" checked><span class="sw-track"></span></label></span><span class="cfg-def">true</span></div>
+          <div class="cfg-row cfg-row--sub"><span class="cfg-key">displayRoom</span><span class="cfg-ctrl"><label class="sw"><input type="checkbox" id="cfg-tt-room" checked><span class="sw-track"></span></label></span><span class="cfg-def">true</span></div>
+
+          <!-- Sous-groupe : Prochain jour -->
+          <div class="cfg-subhead">📆 Prochain jour</div>
+          <div class="cfg-row cfg-row--sub"><span class="cfg-key">displayNextDay</span><span class="cfg-ctrl"><label class="sw"><input type="checkbox" id="cfg-tt-nextday" checked><span class="sw-track"></span></label></span><span class="cfg-def">true</span></div>
+
         </div>
       </div>
 
