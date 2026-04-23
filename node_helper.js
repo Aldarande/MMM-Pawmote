@@ -30,11 +30,24 @@ function _getCallerLoc(depth) {
 /* Debug activé par instance (SET_CONFIG) — évite la contamination croisée */
 const _debugInstances = new Set();
 
+/* ── Buffer de logs circulaire (exposé via /api/logs) ──────────────── */
+const _logBuffer = [];
+function _addToBuffer (level, args) {
+  const msg = args.map(a =>
+    a === null ? 'null'
+    : a === undefined ? 'undefined'
+    : typeof a === 'object' ? (() => { try { return JSON.stringify(a); } catch { return String(a); } })()
+    : String(a)
+  ).join(' ');
+  _logBuffer.push({ ts: Date.now(), level, msg });
+  if (_logBuffer.length > 300) _logBuffer.shift();
+}
+
 const Log = {
-  log:   (...a) => { if (_debugInstances.size > 0) console.log(`[${MODULE_NAME}]`, ...a); },
-  info:  (...a) => console.log(`[${MODULE_NAME}]`, ...a),
-  warn:  (...a) => { const loc = _getCallerLoc(3); console.warn(`[${MODULE_NAME}] ${loc}`, ...a); },
-  error: (...a) => { const loc = _getCallerLoc(3); console.error(`[${MODULE_NAME}] ${loc}`, ...a); }
+  log:   (...a) => { if (_debugInstances.size > 0) { console.log(`[${MODULE_NAME}]`, ...a); _addToBuffer('log', a); } },
+  info:  (...a) => { console.log(`[${MODULE_NAME}]`, ...a); _addToBuffer('info', a); },
+  warn:  (...a) => { const loc = _getCallerLoc(3); console.warn(`[${MODULE_NAME}] ${loc}`, ...a); _addToBuffer('warn', [loc, ...a]); },
+  error: (...a) => { const loc = _getCallerLoc(3); console.error(`[${MODULE_NAME}] ${loc}`, ...a); _addToBuffer('error', [loc, ...a]); }
 };
 
 /* ── Requête brute protocole Pronote (portage pawjote) ───────────── */
@@ -495,6 +508,15 @@ module.exports = NodeHelper.create({
       } catch (e) {
         res.status(500).json({ error: e.message });
       }
+    });
+
+    /* API — buffer de logs (polling depuis la page de config) */
+    app.get('/MMM-Pawmote/api/logs', (req, res) => {
+      const since = parseInt(req.query.since || '0', 10);
+      const logs  = since
+        ? _logBuffer.filter(l => l.ts > since)
+        : _logBuffer.slice(-150);
+      res.json({ logs, now: Date.now() });
     });
   },
 
