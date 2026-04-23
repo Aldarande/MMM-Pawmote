@@ -28,6 +28,7 @@ Module.register('MMM-Pawmote', {
       displayTeacher: true,
       displayRoom: true,
       showOnlyFuture: false,  // n'affiche que les cours à venir
+      showHolidays: false,    // remplace "Aujourd'hui" par un bloc vacances + countdown
       showFrom: '00:00',
       showUntil: '23:59'
     },
@@ -37,6 +38,7 @@ Module.register('MMM-Pawmote', {
       displayDone: true,       // afficher les devoirs faits (cochés)
       displayDescription: true,
       searchDays: 14,          // chercher les devoirs dans les N prochains jours
+      showHolidays: true,      // afficher les devoirs pendant les vacances
       showFrom: '00:00',
       showUntil: '23:59'
     },
@@ -45,6 +47,7 @@ Module.register('MMM-Pawmote', {
       display: true,
       displayDuration: 30,     // afficher les notes des N derniers jours
       number: 10,              // nombre maximum de notes à afficher
+      showHolidays: false,     // masquer les notes pendant les vacances
       showFrom: '00:00',
       showUntil: '23:59'
     },
@@ -53,6 +56,7 @@ Module.register('MMM-Pawmote', {
       display: true,
       displayDuration: 60,     // afficher les absences des N derniers jours
       number: 5,
+      showHolidays: false,     // masquer les absences pendant les vacances
       showFrom: '00:00',
       showUntil: '23:59'
     },
@@ -61,6 +65,7 @@ Module.register('MMM-Pawmote', {
       display: true,
       displayDuration: 60,
       number: 5,
+      showHolidays: false,     // masquer les retards pendant les vacances
       showFrom: '00:00',
       showUntil: '23:59'
     },
@@ -69,6 +74,7 @@ Module.register('MMM-Pawmote', {
       display: true,
       displayDuration: 60,
       number: 5,
+      showHolidays: false,     // masquer les punitions pendant les vacances
       showFrom: '00:00',
       showUntil: '23:59'
     }
