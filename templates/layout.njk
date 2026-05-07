@@ -138,25 +138,18 @@
           {% endif %}
         </div>
 
-        {% set shownDeadline = "" %}
+        {# 1 ligne par échéance : date | mat. · mat. · mat. #}
+        {% set curDeadline = "" %}
         {% for hw in userData.homeworks %}
           {% if not hw.done %}
-            {% if shownDeadline != hw.deadline %}
-              <div class="pm-deadline{% if hw.dueTomorrow %} pm-deadline--urgent{% endif %}">
-                {% if hw.dueTomorrow %}⚠ Demain{% else %}{{ hw.deadline | escape }}{% endif %}
-              </div>
-              {% set shownDeadline = hw.deadline %}
-            {% endif %}
-            <div class="pm-hw">
-              <div class="pm-hw-body">
-                <div class="pm-hw-subject">{{ hw.subject | escape }}</div>
-                {% if config.Homeworks.displayDescription and hw.description %}
-                  <div class="pm-hw-desc">{{ hw.description | escape }}</div>
-                {% endif %}
-              </div>
-            </div>
+            {% if curDeadline != hw.deadline %}
+              {% if curDeadline != "" %}</span></div>{% endif %}
+              <div class="pm-hw-row"><span class="pm-hw-date{% if hw.dueTomorrow %} pm-hw-date--urgent{% endif %}">{% if hw.dueTomorrow %}⚠ Demain{% else %}{{ hw.deadline | escape }}{% endif %}</span><span class="pm-hw-subjects">{{ hw.subject | escape }}
+              {% set curDeadline = hw.deadline %}
+            {% else %} · {{ hw.subject | escape }}{% endif %}
           {% endif %}
         {% endfor %}
+        {% if curDeadline != "" %}</span></div>{% endif %}
 
         {% if config.Homeworks.displayDone %}
           {% set shownDeadline = "" %}
