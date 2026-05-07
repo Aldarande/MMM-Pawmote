@@ -1,10 +1,10 @@
 /* =====================================================================
-   MMM-pawmote — Module frontend MagicMirror²
+   MMM-Pawmote — Module frontend MagicMirror²
    Pawnote rewrite-2.0
    ===================================================================== */
 'use strict';
 
-Module.register('MMM-pawmote', {
+Module.register('MMM-Pawmote', {
 
   requiresVersion: '2.13.0',
 
@@ -28,6 +28,7 @@ Module.register('MMM-pawmote', {
       displayTeacher: true,
       displayRoom: true,
       showOnlyFuture: false,  // n'affiche que les cours à venir
+      showHolidays: false,    // remplace "Aujourd'hui" par un bloc vacances + countdown
       showFrom: '00:00',
       showUntil: '23:59'
     },
@@ -37,6 +38,7 @@ Module.register('MMM-pawmote', {
       displayDone: true,       // afficher les devoirs faits (cochés)
       displayDescription: true,
       searchDays: 14,          // chercher les devoirs dans les N prochains jours
+      showHolidays: true,      // afficher les devoirs pendant les vacances
       showFrom: '00:00',
       showUntil: '23:59'
     },
@@ -45,6 +47,7 @@ Module.register('MMM-pawmote', {
       display: true,
       displayDuration: 30,     // afficher les notes des N derniers jours
       number: 10,              // nombre maximum de notes à afficher
+      showHolidays: false,     // masquer les notes pendant les vacances
       showFrom: '00:00',
       showUntil: '23:59'
     },
@@ -53,6 +56,7 @@ Module.register('MMM-pawmote', {
       display: true,
       displayDuration: 60,     // afficher les absences des N derniers jours
       number: 5,
+      showHolidays: false,     // masquer les absences pendant les vacances
       showFrom: '00:00',
       showUntil: '23:59'
     },
@@ -61,6 +65,7 @@ Module.register('MMM-pawmote', {
       display: true,
       displayDuration: 60,
       number: 5,
+      showHolidays: false,     // masquer les retards pendant les vacances
       showFrom: '00:00',
       showUntil: '23:59'
     },
@@ -69,6 +74,7 @@ Module.register('MMM-pawmote', {
       display: true,
       displayDuration: 60,
       number: 5,
+      showHolidays: false,     // masquer les punitions pendant les vacances
       showFrom: '00:00',
       showUntil: '23:59'
     }
@@ -101,7 +107,7 @@ Module.register('MMM-pawmote', {
       return { loading: 'Connexion à Pronote…' };
     }
     if (this.error || !this.userData) {
-      const configPath = (this.error && this.error.configUrl) || '/MMM-pawmote/config';
+      const configPath = (this.error && this.error.configUrl) || '/MMM-Pawmote/config';
       return {
         error:         this.error || { message: 'Aucune donnée', configUrl: configPath },
         configUrl:     configPath,
@@ -117,20 +123,33 @@ Module.register('MMM-pawmote', {
       Punishments: this._isVisible(this.config.Punishments)
     };
 
-    /* Logique colonnes — calculée ici pour garder les templates simples */
-    const showToday     = (this.userData.timetableToday || []).length > 0;
-    const showHomeworks = (this.userData.homeworks || []).filter(h => !h.done).length > 0;
-    const colCount      = [showToday, true, showHomeworks].filter(Boolean).length;
-    const colClass      = `pm-cols--${colCount}`;
+    /* ── Visibilité par sous-section ────────────────────────────────
+       vis.Timetable = false  → toute la section est masquée (display:false ou hors plage horaire)
+       displayToday / displayNextDay → choix indépendant dans la section visible           */
+    const ttVis      = vis.Timetable;
+    const hasToday   = (this.userData.timetableToday || []).length > 0;
 
-    Log.info(`[${this.name}] vis=${JSON.stringify(vis)} grades=${this.userData.grades?.length} absences=${this.userData.absences?.length}`);
+    /* Aujourd'hui : affiché si displayToday ET (cours présents OU showHolidays activé) */
+    const showToday   = !!(ttVis && this.config.Timetable.displayToday
+                           && (hasToday || this.config.Timetable.showHolidays));
+
+    /* Prochain jour : affiché si displayNextDay ET des données sont disponibles */
+    const showNextDay = !!(ttVis && this.config.Timetable.displayNextDay
+                           && this.userData.timetableNextDay);
+
+    const showHomeworks = (this.userData.homeworks || []).filter(h => !h.done).length > 0;
+
+    Log.info(`[${this.name}] showToday=${showToday} showNextDay=${showNextDay} grades=${this.userData.grades?.length} absences=${this.userData.absences?.length}`);
+    const today = new Date();
+    const todayLabel = today.toLocaleDateString(this.config.language || 'fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
     return {
       config:       this.config,
       userData:     this.userData,
       vis,
       showToday,
+      showNextDay,
       showHomeworks,
-      colClass
+      todayLabel
     };
   },
 
@@ -199,7 +218,7 @@ Module.register('MMM-pawmote', {
         this.error    = {
           type:      'no_tokens',
           message:   'Les tokens ont été supprimés. Reconfigurez le module.',
-          configUrl: '/MMM-pawmote/config'
+          configUrl: '/MMM-Pawmote/config'
         };
         this.updateDom();
         break;

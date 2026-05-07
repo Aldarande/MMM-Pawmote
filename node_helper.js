@@ -1,7 +1,7 @@
 'use strict';
 
 /* =====================================================================
-   MMM-pawmote — node_helper.js
+   MMM-Pawmote — node_helper.js
    Backend MagicMirror² — Pawnote functional API rewrite
    ===================================================================== */
 
@@ -9,7 +9,7 @@ const NodeHelper = require('node_helper');
 const path       = require('path');
 const fs         = require('fs');
 
-const MODULE_NAME  = 'MMM-pawmote';
+const MODULE_NAME  = 'MMM-Pawmote';
 const TOKEN_FILE   = path.join(__dirname, 'cache', 'tokens.json');
 const UUID_FILE    = path.join(__dirname, 'cache', 'device_uuid.txt');
 const PAWNOTE_DIR  = path.join(__dirname, 'node_modules', 'pawnote');
@@ -30,11 +30,24 @@ function _getCallerLoc(depth) {
 /* Debug activé par instance (SET_CONFIG) — évite la contamination croisée */
 const _debugInstances = new Set();
 
+/* ── Buffer de logs circulaire (exposé via /api/logs) ──────────────── */
+const _logBuffer = [];
+function _addToBuffer (level, args) {
+  const msg = args.map(a =>
+    a === null ? 'null'
+    : a === undefined ? 'undefined'
+    : typeof a === 'object' ? (() => { try { return JSON.stringify(a); } catch { return String(a); } })()
+    : String(a)
+  ).join(' ');
+  _logBuffer.push({ ts: Date.now(), level, msg });
+  if (_logBuffer.length > 300) _logBuffer.shift();
+}
+
 const Log = {
-  log:   (...a) => { if (_debugInstances.size > 0) console.log(`[${MODULE_NAME}]`, ...a); },
-  info:  (...a) => console.log(`[${MODULE_NAME}]`, ...a),
-  warn:  (...a) => { const loc = _getCallerLoc(3); console.warn(`[${MODULE_NAME}] ${loc}`, ...a); },
-  error: (...a) => { const loc = _getCallerLoc(3); console.error(`[${MODULE_NAME}] ${loc}`, ...a); }
+  log:   (...a) => { if (_debugInstances.size > 0) { console.log(`[${MODULE_NAME}]`, ...a); _addToBuffer('log', a); } },
+  info:  (...a) => { console.log(`[${MODULE_NAME}]`, ...a); _addToBuffer('info', a); },
+  warn:  (...a) => { const loc = _getCallerLoc(3); console.warn(`[${MODULE_NAME}] ${loc}`, ...a); _addToBuffer('warn', [loc, ...a]); },
+  error: (...a) => { const loc = _getCallerLoc(3); console.error(`[${MODULE_NAME}] ${loc}`, ...a); _addToBuffer('error', [loc, ...a]); }
 };
 
 /* ── Requête brute protocole Pronote (portage pawjote) ───────────── */
@@ -392,17 +405,17 @@ module.exports = NodeHelper.create({
     Log.info('Routes Express enregistrées');
 
     /* Page HTML de configuration */
-    app.get('/MMM-pawmote/config', (req, res) => {
+    app.get('/MMM-Pawmote/config', (req, res) => {
       res.sendFile(path.join(__dirname, 'config-page', 'index.html'));
     });
 
     /* Page de documentation */
-    app.get('/MMM-pawmote/docs', (req, res) => {
+    app.get('/MMM-Pawmote/docs', (req, res) => {
       res.sendFile(path.join(__dirname, 'config-page', 'docs.html'));
     });
 
     /* API — contenu brut du README (pour la page docs) */
-    app.get('/MMM-pawmote/api/readme', (req, res) => {
+    app.get('/MMM-Pawmote/api/readme', (req, res) => {
       const readmePath = path.join(__dirname, 'README.md');
       fs.readFile(readmePath, 'utf8', (err, data) => {
         if (err) return res.status(500).send('README introuvable');
@@ -411,7 +424,7 @@ module.exports = NodeHelper.create({
     });
 
     /* API — statut du token + état module */
-    app.get('/MMM-pawmote/api/status', (req, res) => {
+    app.get('/MMM-Pawmote/api/status', (req, res) => {
       const t = this._loadTokens();
       /* Collecte l'état de toutes les instances */
       let moduleError = null;
@@ -435,7 +448,7 @@ module.exports = NodeHelper.create({
     });
 
     /* API — connexion initiale QR Code */
-    app.post('/MMM-pawmote/api/setup-qr', jsonBodyMiddleware, async (req, res) => {
+    app.post('/MMM-Pawmote/api/setup-qr', jsonBodyMiddleware, async (req, res) => {
       try {
         const { qrToken, pin, childName } = req.body || {};
         Log.info(`Setup QR — body reçu : qrToken=${!!qrToken} pin=${!!pin} body_keys=${Object.keys(req.body||{}).join(',')}`);
@@ -465,7 +478,7 @@ module.exports = NodeHelper.create({
     });
 
     /* API — connexion par identifiants */
-    app.post('/MMM-pawmote/api/setup-credentials', jsonBodyMiddleware, async (req, res) => {
+    app.post('/MMM-Pawmote/api/setup-credentials', jsonBodyMiddleware, async (req, res) => {
       try {
         const { url, username, password, isParent, childName } = req.body;
         if (!url || !username || !password) return res.status(400).json({ error: 'url, username et password requis' });
@@ -485,7 +498,7 @@ module.exports = NodeHelper.create({
     });
 
     /* API — effacer les tokens */
-    app.post('/MMM-pawmote/api/clear', (req, res) => {
+    app.post('/MMM-Pawmote/api/clear', (req, res) => {
       try {
         if (fs.existsSync(TOKEN_FILE)) fs.unlinkSync(TOKEN_FILE);
         res.json({ ok: true });
@@ -496,13 +509,22 @@ module.exports = NodeHelper.create({
         res.status(500).json({ error: e.message });
       }
     });
+
+    /* API — buffer de logs (polling depuis la page de config) */
+    app.get('/MMM-Pawmote/api/logs', (req, res) => {
+      const since = parseInt(req.query.since || '0', 10);
+      const logs  = since
+        ? _logBuffer.filter(l => l.ts > since)
+        : _logBuffer.slice(-150);
+      res.json({ logs, now: Date.now() });
+    });
   },
 
   /* ── Chargement de Pawnote (API fonctionnelle) ───────────────────── */
   _loadPawnote () {
     if (this.pawnote) return this.pawnote;
     if (!fs.existsSync(PAWNOTE_DIR)) {
-      throw new Error('Module pawnote absent — lancez npm install dans le dossier MMM-pawmote');
+      throw new Error('Module pawnote absent — lancez npm install dans le dossier MMM-Pawmote');
     }
     try {
       const pw = require(PAWNOTE_DIR);
@@ -755,7 +777,7 @@ module.exports = NodeHelper.create({
       if (!tokenData || !tokenData.primary?.token) {
         releaseLock();
         Log.warn(`Instance ${instanceId} — aucun token`);
-        notify('ERROR', { type: 'no_tokens', message: 'Aucun token configuré.', configUrl: '/MMM-pawmote/config' });
+        notify('ERROR', { type: 'no_tokens', message: 'Aucun token configuré.', configUrl: '/MMM-Pawmote/config' });
         return;
       }
 
@@ -783,7 +805,7 @@ module.exports = NodeHelper.create({
           releaseLock();
           state.isConnected = false;
           state.lastError   = e1.message;
-          notify('ERROR', { type: 'error', message: `Erreur réseau : ${e1.message}`, configUrl: '/MMM-pawmote/config' });
+          notify('ERROR', { type: 'error', message: `Erreur réseau : ${e1.message}`, configUrl: '/MMM-Pawmote/config' });
           return;
         }
 
@@ -791,7 +813,7 @@ module.exports = NodeHelper.create({
           releaseLock();
           state.isConnected = false;
           state.lastError   = `Token expiré : ${e1.message}`;
-          notify('ERROR', { type: 'auth_failed', message: 'Token expiré. Reconfigurez le module.', configUrl: '/MMM-pawmote/config' });
+          notify('ERROR', { type: 'auth_failed', message: 'Token expiré. Reconfigurez le module.', configUrl: '/MMM-Pawmote/config' });
           return;
         }
 
@@ -806,7 +828,7 @@ module.exports = NodeHelper.create({
           Log.error(`Instance ${instanceId} — backup expiré:`, e2.message);
           state.isConnected = false;
           state.lastError   = `Tokens expirés : ${e2.message}`;
-          notify('ERROR', { type: 'auth_failed', message: 'Tokens expirés. Reconfigurez le module.', configUrl: '/MMM-pawmote/config' });
+          notify('ERROR', { type: 'auth_failed', message: 'Tokens expirés. Reconfigurez le module.', configUrl: '/MMM-Pawmote/config' });
           return;
         }
       }
@@ -825,7 +847,7 @@ module.exports = NodeHelper.create({
       Log.error(`Instance ${instanceId} — erreur:`, e.message);
       state.isConnected = false;
       state.lastError   = e.message;
-      notify('ERROR', { type: 'error', message: `Erreur inattendue : ${e.message}`, configUrl: '/MMM-pawmote/config' });
+      notify('ERROR', { type: 'error', message: `Erreur inattendue : ${e.message}`, configUrl: '/MMM-Pawmote/config' });
     } finally {
       state.isConnecting = false;
     }
@@ -944,15 +966,25 @@ module.exports = NodeHelper.create({
           ? formatDate(nextDate, lang, { weekday: 'long', day: 'numeric', month: 'long' })
           : '';
         const sortedNext = [...nextEntries].sort((a, b) => new Date(a.startDate) - new Date(b.startDate));
+        /* Calcul du nombre de jours jusqu'au prochain jour scolaire */
+        const msPerDay   = 24 * 60 * 60 * 1000;
+        const todayMid   = new Date(today); todayMid.setHours(0, 0, 0, 0);
+        const daysUntil  = nextDate
+          ? Math.round((new Date(nextDate).setHours(0,0,0,0) - todayMid.getTime()) / msPerDay)
+          : null;
+
         data.timetableNextDay = {
-          day:     dayLabel,
-          start:   sortedNext.length ? formatTime(sortedNext[0].startDate, lang) : '',
-          end:     sortedNext.length ? formatTime(sortedNext[sortedNext.length - 1].endDate, lang) : '',
-          classes: [...nextEntries]
+          day:      dayLabel,
+          start:    sortedNext.length ? formatTime(sortedNext[0].startDate, lang) : '',
+          end:      sortedNext.length ? formatTime(sortedNext[sortedNext.length - 1].endDate, lang) : '',
+          daysUntil,
+          classes:  [...nextEntries]
             .sort((a, b) => new Date(a.startDate) - new Date(b.startDate))
             .map(e => mapTimetableEntry(e, lang))
         };
-        Log.info(`EDT aujourd'hui: ${data.timetableToday.length} cours | prochain jour: ${data.timetableNextDay.classes.length} cours`);
+        /* Flag vacances : aucun cours aujourd'hui (week-end inclus) */
+        data.noClassesToday = data.timetableToday.length === 0;
+        Log.info(`EDT aujourd'hui: ${data.timetableToday.length} cours | prochain jour: ${data.timetableNextDay.classes.length} cours | vacances: ${data.noClassesToday}`);
       } catch (e) {
         Log.error('EDT:', e.message);
       }
