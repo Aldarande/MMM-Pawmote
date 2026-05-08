@@ -29,15 +29,15 @@
   --pm-indent:     14px;          /* retrait gauche depuis le rail   */
 
   /* ── Typographie ─────────────────────────────────────────────── */
-  --pm-font-xl:    0.90rem;       /* sujet du cours                  */
-  --pm-font-base:  0.78rem;       /* heures, échéances               */
-  --pm-font-sm:    0.68rem;       /* salle, prof, desc devoir        */
-  --pm-font-xs:    0.58rem;       /* labels de section               */
-  --pm-font-xxs:   0.50rem;       /* établissement, badges           */
+  --pm-font-xl:    0.82rem;       /* sujet du cours                  */
+  --pm-font-base:  0.72rem;       /* heures, échéances               */
+  --pm-font-sm:    0.64rem;       /* salle, prof, desc devoir        */
+  --pm-font-xs:    0.56rem;       /* labels de section               */
+  --pm-font-xxs:   0.48rem;       /* établissement, badges           */
 
   /* ── Espacement ──────────────────────────────────────────────── */
-  --pm-entry-gap:  0.26em;
-  --pm-section-gap:0.70em;
+  --pm-entry-gap:  0.15em;
+  --pm-section-gap:0.45em;
 }
 
 /* ── Ombre texte pour lisibilité à travers le verre ─────────────── */
@@ -60,9 +60,9 @@
 .pm-header {
   display: flex;
   align-items: center;
-  gap: 7px;
-  margin-bottom: 10px;
-  padding-bottom: 6px;
+  gap: 5px;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
   border-bottom: 1px solid var(--pm-line);
 }
 
@@ -159,8 +159,8 @@
 .pm-section-head {
   display: flex;
   align-items: baseline;
-  gap: 6px;
-  margin-bottom: 5px;
+  gap: 5px;
+  margin-bottom: 3px;
 }
 
 .pm-section-label {
@@ -305,14 +305,50 @@
   font-style: italic;
 }
 
+/* ── Devoirs — format compact 1 ligne / échéance ────────────────── */
+.pm-hw-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  margin-bottom: var(--pm-entry-gap);
+  min-width: 0;
+}
+
+.pm-hw-date {
+  font-size: var(--pm-font-xs);
+  color: var(--pm-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+  max-width: 5.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.pm-hw-date--urgent {
+  color: var(--pm-urgent);
+  font-weight: 700;
+}
+
+.pm-hw-subjects {
+  font-size: var(--pm-font-base);
+  color: var(--pm-bright);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
 /* ── Devoirs — échéance ──────────────────────────────────────────── */
 .pm-deadline {
   font-size: var(--pm-font-xs);
   letter-spacing: .09em;
   text-transform: uppercase;
   color: var(--pm-muted);
-  margin: 5px 0 3px;
-  padding-bottom: 2px;
+  margin: 3px 0 2px;
+  padding-bottom: 1px;
   border-bottom: 1px solid var(--pm-line);
   white-space: nowrap;
   overflow: hidden;
