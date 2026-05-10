@@ -3,6 +3,9 @@
    ===================================================================== */
 
 .MMM-Pawmote {
+  max-width:  33.33vw;
+  max-height: 33.33vh;
+  overflow:   hidden;
 
   /* ── Palette ─────────────────────────────────────────────────────
      Règle : aucun texte lisible sous #CCCCCC (fond noir + verre)    */

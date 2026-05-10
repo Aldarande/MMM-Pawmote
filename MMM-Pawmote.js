@@ -137,7 +137,32 @@ Module.register('MMM-Pawmote', {
     const showNextDay = !!(ttVis && this.config.Timetable.displayNextDay
                            && this.userData.timetableNextDay);
 
-    const showHomeworks = (this.userData.homeworks || []).filter(h => !h.done).length > 0;
+    const homeworks    = this.userData.homeworks || [];
+    const pendingCount = homeworks.filter(h => !h.done).length;
+    const showHomeworks = pendingCount > 0;
+
+    /* Grouper les devoirs par échéance et dédupliquer les matières (ex: PHYSIQUE-CHIMIE ×3) */
+    const hwRows = [];
+    const byDeadline = new Map();
+    for (const hw of homeworks) {
+      if (hw.done) continue;
+      if (!byDeadline.has(hw.deadline)) {
+        byDeadline.set(hw.deadline, { deadline: hw.deadline, dueTomorrow: hw.dueTomorrow, subjects: [] });
+      }
+      byDeadline.get(hw.deadline).subjects.push(hw.subject);
+    }
+    for (const row of byDeadline.values()) {
+      const counts = new Map();
+      for (const s of row.subjects) counts.set(s, (counts.get(s) || 0) + 1);
+      const seen  = new Set();
+      const parts = [];
+      for (const s of row.subjects) {
+        if (seen.has(s)) continue;
+        seen.add(s);
+        parts.push(counts.get(s) > 1 ? `${s} ×${counts.get(s)}` : s);
+      }
+      hwRows.push({ deadline: row.deadline, dueTomorrow: row.dueTomorrow, subjectsText: parts.join(' · ') });
+    }
 
     Log.info(`[${this.name}] showToday=${showToday} showNextDay=${showNextDay} grades=${this.userData.grades?.length} absences=${this.userData.absences?.length}`);
     const today = new Date();
@@ -149,6 +174,8 @@ Module.register('MMM-Pawmote', {
       showToday,
       showNextDay,
       showHomeworks,
+      pendingCount,
+      hwRows,
       todayLabel
     };
   },

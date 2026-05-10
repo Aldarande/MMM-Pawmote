@@ -124,11 +124,6 @@
 
     {# ── Devoirs ─────────────────────────────────────────────────── #}
     {% if showHomeworks and (not userData.noClassesToday or config.Homeworks.showHolidays) %}
-      {% set pendingCount = 0 %}
-      {% for hw in userData.homeworks %}
-        {% if not hw.done %}{% set pendingCount = pendingCount + 1 %}{% endif %}
-      {% endfor %}
-
       {% if pendingCount > 0 or (config.Homeworks.displayDone and userData.homeworks | length > 0) %}
       <div class="pm-section">
         <div class="pm-section-head">
@@ -138,18 +133,13 @@
           {% endif %}
         </div>
 
-        {# 1 ligne par échéance : date | mat. · mat. · mat. #}
-        {% set curDeadline = "" %}
-        {% for hw in userData.homeworks %}
-          {% if not hw.done %}
-            {% if curDeadline != hw.deadline %}
-              {% if curDeadline != "" %}</span></div>{% endif %}
-              <div class="pm-hw-row"><span class="pm-hw-date{% if hw.dueTomorrow %} pm-hw-date--urgent{% endif %}">{% if hw.dueTomorrow %}⚠ Demain{% else %}{{ hw.deadline | escape }}{% endif %}</span><span class="pm-hw-subjects">{{ hw.subject | escape }}
-              {% set curDeadline = hw.deadline %}
-            {% else %} · {{ hw.subject | escape }}{% endif %}
-          {% endif %}
+        {# 1 ligne par échéance : date | mat. · mat. ×3 · mat. #}
+        {% for row in hwRows %}
+          <div class="pm-hw-row">
+            <span class="pm-hw-date{% if row.dueTomorrow %} pm-hw-date--urgent{% endif %}">{% if row.dueTomorrow %}⚠ Demain{% else %}{{ row.deadline | escape }}{% endif %}</span>
+            <span class="pm-hw-subjects">{{ row.subjectsText | escape }}</span>
+          </div>
         {% endfor %}
-        {% if curDeadline != "" %}</span></div>{% endif %}
 
         {% if config.Homeworks.displayDone %}
           {% set shownDeadline = "" %}
